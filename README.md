@@ -2,7 +2,7 @@
 
 **SpartHill Hackathon 2026 | AWS Challenge**
 
-**Team:** Kirill, Jordan, Samuel, Bhuvana, Hiral, Josh
+**Team:** Jordan, Samuel, Bhuvana, Hiral, Josh
 
 **Status:** Project plan. Features below are planned, not confirmed as built.
 
