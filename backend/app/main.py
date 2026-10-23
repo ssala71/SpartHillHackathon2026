@@ -1,0 +1,21 @@
+from fastapi import FastAPI
+
+from app.core.config import settings
+
+app = FastAPI(
+    title="SMS Disaster Resource Coordinator API",
+    version="0.1.0",
+    description="Backend API for coordinating disaster resource requests.",
+)
+
+
+@app.get("/health", tags=["system"])
+def health_check() -> dict[str, str]:
+    """Report whether the API process is running."""
+    return {"status": "ok"}
+
+
+@app.get("/", tags=["system"])
+def root() -> dict[str, str]:
+    """Provide a simple API welcome response."""
+    return {"message": f"{settings.app_name} is running"}

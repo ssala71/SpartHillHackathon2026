@@ -1,2 +1,5 @@
-# Add backend Python dependencies here, one package per line.
-# Keep this file in sync with the active virtual environment.
+fastapi
+uvicorn[standard]
+pydantic-settings
+pytest
+httpx
