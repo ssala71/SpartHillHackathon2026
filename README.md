@@ -43,7 +43,7 @@ The system extracts her location and needs, flags the medical-device concern for
 
 ### Role 1: AWS Backend and SMS
 
-**Kirill, Jordan, Samuel**
+**Jordan, Samuel**
 
 - Build incoming and outgoing SMS, coordinator-triggered broadcasts, and opt-out handling.
 - Build APIs and storage for incidents, requests, resources, inventory, and assignments.
