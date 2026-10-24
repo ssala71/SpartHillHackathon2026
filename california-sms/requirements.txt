@@ -1,0 +1,9 @@
+# =============================================================================
+# Root runtime dependency entry point
+#
+# Use `python -m pip install -r requirements.txt` for local application execution.
+# Delegate to src/requirements.txt so local installs and SAM's Lambda build use
+# the same direct dependency pins. Development-only tools live in the separate
+# requirements-dev.txt file and are not required for sending or receiving SMS.
+# =============================================================================
+-r src/requirements.txt

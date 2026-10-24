@@ -1,0 +1,19 @@
+# =============================================================================
+# Deployed Python runtime dependencies
+#
+# AWS SAM's Python builder discovers this file inside CodeUri (src/) and packages
+# these libraries with both Lambda functions. The root requirements.txt includes
+# it for local development. Exact pins cover direct dependencies; transitive
+# dependencies are still resolved by pip and this is not a full lockfile.
+# Keep test tools out of this file so they are not shipped to Lambda.
+# =============================================================================
+# HTTP routes, validation integration, dependency injection, and OpenAPI schema.
+fastapi==0.162.0
+# Local ASGI web server; AWS Lambda enters through Mangum instead of Uvicorn.
+uvicorn==0.54.0
+# AWS SDK clients/resources for SMS, Bedrock, DynamoDB, and Secrets Manager.
+boto3==1.43.118
+# Converts API Gateway events into ASGI requests for the same FastAPI app.
+mangum==0.22.0
+# Loads optional local .env settings without overriding deployment variables.
+python-dotenv==1.2.4

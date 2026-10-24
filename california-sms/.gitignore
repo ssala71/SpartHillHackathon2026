@@ -1,0 +1,18 @@
+# =============================================================================
+# Repository exclusions for local secrets and generated artifacts
+#
+# Track source, tests, deployment templates, and .env.example. Keep real local
+# settings and machine-specific build/test output out of commits. Git ignores
+# apply only to untracked files: they do not remove a previously committed secret
+# from repository history or revoke credentials that have already been exposed.
+# =============================================================================
+# Contains actual resource settings and may include the backend bearer token.
+.env
+# Locally installed dependencies are reproducible from the requirements files.
+.venv/
+# Python bytecode and pytest state are regenerated as needed.
+__pycache__/
+.pytest_cache/
+# SAM build output and account-specific deployment defaults remain local.
+.aws-sam/
+samconfig.toml

@@ -1,0 +1,15 @@
+# =============================================================================
+# Local test dependencies
+#
+# Install with `python -m pip install -r requirements-dev.txt` before running pytest.
+# Include the runtime set so tests import the same application libraries used by
+# the deployment. This file is outside SAM's src/ CodeUri: test clients/runners
+# are not added to the Lambda artifact. No package here configures AWS credentials.
+# =============================================================================
+-r requirements.txt
+# HTTP transport used by the installed Starlette/FastAPI TestClient integration.
+httpx==0.28.1
+# Test discovery, fixtures, parameterization, and monkeypatch-based isolation.
+pytest==9.1.1
+# YAML tooling for local infrastructure inspection; cfn-lint is installed separately.
+PyYAML==6.0.3

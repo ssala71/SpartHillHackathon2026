@@ -1,0 +1,220 @@
+# =============================================================================
+# AWS SAM infrastructure: California SMS service
+#
+# Deploys the HTTP API and asynchronous inbound-SMS worker, plus their SNS topic,
+# DynamoDB ledger, bearer-token secret, and Lambda failure queue. Both functions
+# package only src/, excluding local secrets and test doubles. Existing approved
+# phone-number details are deployment parameters; this template does not purchase
+# numbers, register SMS campaigns, or enable two-way messaging on the number.
+# After deployment, point that number's two-way configuration at InboundTopicArn.
+# Use us-west-2 and review the generated IAM roles/changeset before deployment.
+# =============================================================================
+AWSTemplateFormatVersion: '2010-09-09'
+# SAM expands shorthand functions, event bindings, and policy templates into
+# CloudFormation resources, including execution roles and invoke permissions.
+Transform: AWS::Serverless-2016-10-31
+Description: FastAPI and Bedrock two-way SMS service for US recipients; deploy in us-west-2.
+
+Parameters:
+  # Existing sender identity; IAM sending permission is limited to this ARN.
+  OriginationArn:
+    Type: String
+    Description: ARN of your active dedicated SMS phone number in this region/account.
+    AllowedPattern: '^arn:aws:sms-voice:[a-z0-9-]+:[0-9]{12}:phone-number/.+$'
+  PhoneNumber:
+    # E.164 address of the same identity, used to reject misrouted incoming texts.
+    Type: String
+    Description: The dedicated number in +1 E.164 format.
+    AllowedPattern: '^\+1[2-9][0-9]{2}[2-9][0-9]{6}$'
+  AllowedRecipients:
+    # Runtime validation also checks syntax. An allowlist is not proof of consent,
+    # sandbox verification, or an alternative to AWS-managed opt-out suppression.
+    Type: String
+    Description: Comma-separated consenting US recipients in E.164; verify each if in the SMS sandbox.
+    MinLength: 12
+  DailyLimit:
+    # Per recipient, per UTC day, shared by API sends and automated replies.
+    Type: Number
+    Default: 20
+    MinValue: 1
+    MaxValue: 100
+
+Globals:
+  # These defaults apply to BOTH functions. Keep AWS credentials out of variables:
+  # Lambda automatically supplies temporary execution-role credentials and region.
+  Function:
+    Runtime: python3.12
+    Architectures: [x86_64]
+    CodeUri: src/
+    MemorySize: 256
+    Environment:
+      Variables:
+        ALLOWED_RECIPIENTS: !Ref AllowedRecipients
+        SMS_PHONE_NUMBER: !Ref PhoneNumber
+        SMS_ORIGINATION_ID: !Ref OriginationArn
+        BEDROCK_MODEL_ID: us.amazon.nova-lite-v1:0
+        # Changing this profile also requires updating InboundFunction's Bedrock
+        # IAM resources below. The US profile may invoke a model in other US regions.
+        TABLE_NAME: !Ref Ledger
+        INBOUND_TOPIC_ARN: !Ref IncomingTopic
+        DAILY_LIMIT_PER_RECIPIENT: !Ref DailyLimit
+        SMS_MAX_PRICE_USD: '0.05'
+        # This is an SMS message-part price guard, not a total AWS spending budget.
+
+Resources:
+  Ledger:
+    # Stores in:/out: idempotency keys and quota: counters in a shared table.
+    # Conditional writes make reservations/counts consistent across invocations.
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      TimeToLiveSpecification:
+        # TTL deletion is asynchronous; application logic must not rely on exact
+        # expiry times. New quota days use new keys independently of TTL cleanup.
+        AttributeName: expires_at
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  ApiToken:
+    # Generate a raw 48-character SecretString; main.expected_token reads it as-is.
+    # Exposing its ARN is safe for configuration, but callers still need permission
+    # to retrieve the secret. Never put the token value into a public frontend.
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Bearer token for the SMS backend; keep out of frontend code.
+      GenerateSecretString:
+        PasswordLength: 48
+        ExcludePunctuation: true
+
+  HttpApi:
+    # Application code enforces the bearer token on /sms/send. /health and schema
+    # endpoints are intentionally public; this API has no Cognito/IAM authorizer.
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: '$default'
+      DefaultRouteSettings:
+        # Throttle HTTP traffic independently from durable per-recipient quotas.
+        ThrottlingBurstLimit: 5
+        ThrottlingRateLimit: 2
+
+  ApiFunction:
+    # Mangum adapts API Gateway HTTP API v2 events to the FastAPI application.
+    # This function sends caller-provided SMS; it does not need Bedrock permission.
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.main.handler
+      Timeout: 25
+      Environment:
+        Variables:
+          API_TOKEN_SECRET_ARN: !Ref ApiToken
+      Policies:
+        # SAM creates a role with table access plus log-writing permissions.
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Ledger
+        - Statement:
+            - Effect: Allow
+              Action: sms-voice:SendTextMessage
+              Resource: !Ref OriginationArn
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref ApiToken
+      Events:
+        # Proxy paths reach FastAPI, which decides whether a concrete route exists.
+        Proxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+
+  IncomingTopic:
+    # A standard topic receives events from the dedicated SMS number. The number
+    # must be connected to this topic separately in AWS End User Messaging settings.
+    Type: AWS::SNS::Topic
+
+  IncomingTopicPolicy:
+    # Permit the messaging service to publish, constrained to this AWS account and
+    # region. The handler additionally checks the precise configured topic ARN.
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref IncomingTopic]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sms-voice.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref IncomingTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:${AWS::Partition}:sms-voice:${AWS::Region}:${AWS::AccountId}:*'
+
+  FailedIncoming:
+    # Receives Lambda asynchronous invocation failures after retries. This is not
+    # an SMS delivery-receipt queue or a subscription-level SNS delivery DLQ.
+    # Payloads can contain the original text; restrict access and inspect manually.
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  InboundFunction:
+    # The worker parses SNS, applies authorization/idempotency/quota checks, invokes
+    # Bedrock, and submits a reply. Extra timeout allows for bounded model latency.
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.inbound.handler
+      Timeout: 100
+      EventInvokeConfig:
+        # Lambda may retry the event, but the ledger prevents uncertain SMS sends
+        # from being automatically repeated. FAILED/PROCESSING records need review.
+        MaximumRetryAttempts: 2
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt FailedIncoming.Arn
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Ledger
+        - Statement:
+            - Effect: Allow
+              Action: sms-voice:SendTextMessage
+              Resource: !Ref OriginationArn
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              # Cross-region inference needs both the selected profile and the
+              # underlying foundation model's possible US-region resources.
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-lite-v1:0'
+                - !Sub 'arn:${AWS::Partition}:bedrock:us-*::foundation-model/amazon.nova-lite-v1:0'
+      Events:
+        # SAM generates the SNS subscription and permission for SNS to invoke Lambda.
+        IncomingSMS:
+          Type: SNS
+          Properties:
+            Topic: !Ref IncomingTopic
+
+Outputs:
+  # Export resource addresses for setup and local configuration, not secret values.
+  ApiUrl:
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
+  InboundTopicArn:
+    Description: Select this topic in the phone number's two-way SMS settings.
+    Value: !Ref IncomingTopic
+  ApiTokenSecretArn:
+    Description: Retrieve SecretString securely; don't commit or expose it in a frontend.
+    Value: !Ref ApiToken
+  FailureQueueUrl:
+    Value: !Ref FailedIncoming
+  LedgerTable:
+    Value: !Ref Ledger
