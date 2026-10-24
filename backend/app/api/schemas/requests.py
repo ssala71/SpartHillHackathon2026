@@ -7,19 +7,19 @@ from app.api.schemas.common import RecordTimestamps
 
 
 class RequestUrgency(str, Enum):
-    NORMAL = "normal"
-    URGENT = "urgent"
-    MEDICAL = "medical"
+    NORMAL = "Normal"
+    URGENT = "Urgent"
+    MEDICAL = "Medical"
 
 
 class RequestStatus(str, Enum):
-    RECEIVED = "received"
-    PROCESSING = "processing"
-    NEEDS_REVIEW = "needs_review"
-    MATCHED = "matched"
-    ASSIGNED = "assigned"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
+    RECEIVED = "Received"
+    PROCESSING = "Processing"
+    NEEDS_REVIEW = "NeedsReview"
+    MATCHED = "Matched"
+    ASSIGNED = "Assigned"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"
 
 
 class RequestCreate(RecordTimestamps):

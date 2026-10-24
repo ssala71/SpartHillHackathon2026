@@ -7,12 +7,12 @@ from app.api.schemas.common import RecordTimestamps
 
 
 class AssignmentStatus(str, Enum):
-    PENDING = "pending"
-    ACCEPTED = "accepted"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    DECLINED = "declined"
-    CANCELLED = "cancelled"
+    PENDING = "Pending"
+    ACCEPTED = "Accepted"
+    IN_PROGRESS = "InProgress"
+    COMPLETED = "Completed"
+    DECLINED = "Declined"
+    CANCELLED = "Cancelled"
 
 
 class AssignmentCreate(RecordTimestamps):

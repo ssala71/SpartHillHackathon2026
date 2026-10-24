@@ -6,10 +6,10 @@ from app.api.schemas.common import RecordTimestamps
 
 
 class ResourceStatus(str, Enum):
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    TEMPORARILY_CLOSED = "temporarily_closed"
-    NEEDS_VERIFICATION = "needs_verification"
+    ACTIVE = "Active"
+    INACTIVE = "Inactive"
+    TEMPORARILY_CLOSED = "TemporarilyClosed"
+    NEEDS_VERIFICATION = "NeedsVerification"
 
 
 class ResourceCreate(RecordTimestamps):

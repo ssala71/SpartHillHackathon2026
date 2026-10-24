@@ -6,11 +6,11 @@ from app.api.schemas.common import RecordTimestamps
 
 
 class IncidentStatus(str, Enum):
-    DRAFT = "draft"
-    ACTIVE = "active"
-    PAUSED = "paused"
-    RESOLVED = "resolved"
-    CANCELLED = "cancelled"
+    DRAFT = "Draft"
+    ACTIVE = "Active"
+    PAUSED = "Paused"
+    RESOLVED = "Resolved"
+    CANCELLED = "Cancelled"
 
 
 class IncidentCreate(RecordTimestamps):

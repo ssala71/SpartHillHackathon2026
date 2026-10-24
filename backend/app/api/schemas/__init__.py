@@ -3,7 +3,12 @@
 from app.api.schemas.assignments import Assignment, AssignmentCreate, AssignmentStatus
 from app.api.schemas.common import ApiError, ApiResponse, RecordTimestamps
 from app.api.schemas.incidents import Incident, IncidentCreate, IncidentStatus
-from app.api.schemas.inventory import InventoryItem, InventoryItemCreate, InventoryStatus
+from app.api.schemas.inventory import (
+    InventoryCategory,
+    InventoryItem,
+    InventoryItemCreate,
+    InventoryStatus,
+)
 from app.api.schemas.requests import Request, RequestCreate, RequestStatus, RequestUrgency
 from app.api.schemas.resources import Resource, ResourceCreate, ResourceStatus
 
@@ -18,6 +23,7 @@ __all__ = [
     "IncidentStatus",
     "InventoryItem",
     "InventoryItemCreate",
+    "InventoryCategory",
     "InventoryStatus",
     "RecordTimestamps",
     "Request",
