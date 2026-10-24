@@ -14,6 +14,7 @@ from app.db.models import Request as RequestModel
 from app.db.models import StoredAIResult as StoredAIResultModel
 from app.db.session import get_db
 from app.services.ai_processing import process_attempt
+from app.services.request_matching import build_match_result
 
 router = APIRouter(prefix="/api/requests", tags=["ai-processing"])
 
@@ -119,17 +120,17 @@ def retry_request(
 
 @router.get("/{request_id}/match", response_model=ApiResponse[MatchResult])
 def get_match_result(request_id: UUID, db: Session = Depends(get_db)) -> ApiResponse[MatchResult]:
+    """Next action for a request: direct to a place, coordinator review,
+    one combined follow-up question, or an honest no-match."""
     request = db.get(RequestModel, request_id)
     if request is None:
         raise _error("REQUEST_NOT_FOUND", "Request was not found", status.HTTP_404_NOT_FOUND)
-    return ApiResponse(
-        data=MatchResult(
-            request_id=request_id,
-            matched=False,
-            needs_review=True,
-            reason="Resource matching is owned by Role 2 and is not configured yet.",
-        )
+    latest_result = db.scalar(
+        select(StoredAIResultModel)
+        .where(StoredAIResultModel.request_id == request_id)
+        .order_by(StoredAIResultModel.created_at.desc())
     )
+    return ApiResponse(data=build_match_result(request_id, latest_result))
 
 
 @router.get("/{request_id}/result", response_model=ApiResponse[StoredAIResult])

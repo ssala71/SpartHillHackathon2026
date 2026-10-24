@@ -7,9 +7,51 @@ from app.api.schemas.common import RecordTimestamps
 
 
 class RequestUrgency(str, Enum):
-    NORMAL = "Normal"
-    URGENT = "Urgent"
-    MEDICAL = "Medical"
+    """Shared urgency levels: low | medium | high.
+
+    This matches the resource matcher (``app.resource_matching.models.Urgency``).
+    A medical concern is HIGH urgency plus a human-review flag, not a separate
+    level. Legacy values (Normal/Urgent/Medical) and any letter case are still
+    accepted on input so older clients and model output do not fail validation.
+    """
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "RequestUrgency | None":
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip().lower()
+        legacy = {"normal": cls.LOW, "urgent": cls.HIGH, "medical": cls.HIGH}
+        if normalized in legacy:
+            return legacy[normalized]
+        for member in cls:
+            if member.value == normalized:
+                return member
+        return None
+
+
+class DeliveryMode(str, Enum):
+    """Asked only for medicine requests: does the person need someone to bring
+    it, or can they travel to collect it?"""
+
+    DELIVER = "deliver"
+    COLLECT = "collect"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "DeliveryMode | None":
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip().lower()
+        aliases = {"delivery": cls.DELIVER, "pickup": cls.COLLECT, "pick up": cls.COLLECT, "collection": cls.COLLECT}
+        if normalized in aliases:
+            return aliases[normalized]
+        for member in cls:
+            if member.value == normalized:
+                return member
+        return None
 
 
 class RequestStatus(str, Enum):
@@ -35,7 +77,7 @@ class RequestCreate(BaseModel):
     needs: list[str] = Field(default_factory=list)
     people_count: int | None = Field(default=None, ge=1)
     household_size: int | None = Field(default=None, ge=1)
-    urgency: RequestUrgency = RequestUrgency.NORMAL
+    urgency: RequestUrgency = RequestUrgency.LOW
     channel: RequestChannel = RequestChannel.FRONTEND
 
     @field_validator("source_phone")
@@ -60,7 +102,7 @@ class Request(RecordTimestamps):
     needs: list[str] = Field(default_factory=list)
     people_count: int | None = Field(default=None, ge=1)
     household_size: int | None = Field(default=None, ge=1)
-    urgency: RequestUrgency = RequestUrgency.NORMAL
+    urgency: RequestUrgency = RequestUrgency.LOW
     channel: RequestChannel
     status: RequestStatus
     status_updated_by_admin_id: UUID | None = None

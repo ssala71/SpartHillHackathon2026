@@ -26,13 +26,14 @@ from app.resource_matching.store import ResourceStore
 # A Monday at 12:00 UTC — inside every demo resource's operating hours.
 MONDAY_NOON = datetime(2026, 10, 19, 12, 0, 0, tzinfo=timezone.utc)
 
-# Near Riverside (res-0001) and Eastside (res-0003, unverified).
-NEAR_RIVERSIDE = ExtractedLocation(lat=34.0752, lon=-117.3698, confidence=0.9)
+# Near Tully Rd, San Jose: closest to Eastside (res-0003, unverified), then
+# Tully Community Center (res-0001). Same point the geocoder returns for "Tully".
+NEAR_TULLY = ExtractedLocation(lat=37.3161, lon=-121.8401, confidence=0.9)
 
 
 def make_extraction(
     categories,
-    location=NEAR_RIVERSIDE,
+    location=NEAR_TULLY,
     people=3,
     urgency="low",
     requires_human_review=False,

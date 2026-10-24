@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, ForeignKey, Index, JSON, Numeric, String, Text, UniqueConstraint, event, inspect, text
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, Float, ForeignKey, Index, JSON, Numeric, String, Text, UniqueConstraint, event, inspect, text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
@@ -82,7 +82,7 @@ class Request(TimestampMixin, Base):
     needs: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     people_count: Mapped[int | None] = mapped_column(nullable=True)
     household_size: Mapped[int | None] = mapped_column(nullable=True)
-    urgency: Mapped[RequestUrgency] = mapped_column(enum_type(RequestUrgency, "request_urgency"), nullable=False, default=RequestUrgency.NORMAL)
+    urgency: Mapped[RequestUrgency] = mapped_column(enum_type(RequestUrgency, "request_urgency"), nullable=False, default=RequestUrgency.LOW)
     channel: Mapped[RequestChannel] = mapped_column(enum_type(RequestChannel, "request_channel"), nullable=False, default=RequestChannel.FRONTEND)
     status: Mapped[RequestStatus] = mapped_column(enum_type(RequestStatus, "request_status"), nullable=False, default=RequestStatus.RECEIVED)
     status_updated_by_admin_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
@@ -127,8 +127,13 @@ class StoredAIResult(TimestampMixin, Base):
     needs: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     urgency: Mapped[RequestUrgency] = mapped_column(enum_type(RequestUrgency, "ai_result_urgency"), nullable=False)
     location: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    location_source: Mapped[str | None] = mapped_column(String(100), nullable=True)
     people_count: Mapped[int | None] = mapped_column(nullable=True)
     household_size: Mapped[int | None] = mapped_column(nullable=True)
+    medical_concern: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    delivery_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
     missing_information: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     needs_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     summary: Mapped[str] = mapped_column(Text, nullable=False)

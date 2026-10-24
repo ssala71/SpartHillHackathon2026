@@ -24,11 +24,24 @@ def test_records_have_pacific_timestamps() -> None:
     assert record.created_at.tzname() in {"PST", "PDT"}
 
 
+def test_urgency_uses_low_medium_high() -> None:
+    assert {u.value for u in RequestUrgency} == {"low", "medium", "high"}
+    assert RequestCreate(source_phone="+14085551212", message="x").urgency is RequestUrgency.LOW
+
+
+def test_urgency_accepts_any_case_and_legacy_values() -> None:
+    # Lowercase/uppercase and the old Normal/Urgent/Medical labels still validate.
+    cases = {"HIGH": "high", "Medium": "medium", "Normal": "low", "Urgent": "high", "medical": "high"}
+    for raw, expected in cases.items():
+        request = RequestCreate(source_phone="+14085551212", message="x", urgency=raw)
+        assert request.urgency.value == expected
+
+
 def test_contracts_validate_enum_values() -> None:
     request = RequestCreate(
         source_phone="+14085551212",
         message="We need water",
-        urgency="Medical",
+        urgency="high",
     )
     inventory = InventoryItem(
         resource_id="00000000-0000-0000-0000-000000000001",
@@ -40,7 +53,7 @@ def test_contracts_validate_enum_values() -> None:
         expiration_date="2027-01-15",
     )
 
-    assert request.urgency is RequestUrgency.MEDICAL
+    assert request.urgency is RequestUrgency.HIGH
     assert inventory.status.value == "Available"
     assert inventory.category is InventoryCategory.LIQUIDS
     assert inventory.expiration_date == date(2027, 1, 15)

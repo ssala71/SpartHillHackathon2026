@@ -11,6 +11,7 @@ from app.api.schemas.inventory import (
     InventoryStatus,
 )
 from app.api.schemas.requests import (
+    DeliveryMode,
     Request,
     RequestChannel,
     RequestCreate,
@@ -28,6 +29,7 @@ __all__ = [
     "Assignment",
     "AssignmentCreate",
     "AssignmentStatus",
+    "DeliveryMode",
     "Incident",
     "IncidentCreate",
     "IncidentStatus",

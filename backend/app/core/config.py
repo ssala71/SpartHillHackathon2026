@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
     bedrock_enabled: bool = False
     bedrock_model_id: str = "amazon.nova-lite-v1:0"
+    # "gazetteer" (offline demo landmarks) or "aws_location" (Amazon Location Service)
+    geocoding_provider: str = "gazetteer"
+    # Bias geocoding toward downtown San Jose.
+    geocoding_bias_latitude: float = 37.3382
+    geocoding_bias_longitude: float = -121.8863
 
     model_config = SettingsConfigDict(
         env_file=".env",
