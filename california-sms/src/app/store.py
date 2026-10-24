@@ -8,7 +8,10 @@
 # This ledger cannot atomically commit an external SMS send and a database write,
 # so callers must retain the review-required policy for uncertain sends.
 # =============================================================================
-"""Small idempotency ledger. Records contain hashes/status, not SMS content."""
+"""Small idempotency ledger. Records contain hashes/status, not SMS content,
+except short-lived reply history for the /sms/reply relay (see history()).
+"""
+import json
 import time
 
 from botocore.exceptions import ClientError
@@ -79,3 +82,17 @@ class DynamoStore:
             if error.response['Error']['Code'] == 'ConditionalCheckFailedException':
                 raise QuotaExceeded() from error
             raise
+
+    def history(self, key):
+        # Recent [text, reply] pairs for one sender of the /sms/reply relay, so a
+        # follow-up such as "near Story and King" keeps the earlier need in context.
+        # TTL deletion is lazy, so an expired record is ignored here as well.
+        item = self.table.get_item(Key={'pk': key}, ConsistentRead=True).get('Item')
+        if not item or int(item.get('expires_at', 0)) < time.time():
+            return []
+        return json.loads(item['turns'])
+
+    def save_history(self, key, turns, ttl):
+        # Message text is stored only here, only for ttl seconds after the last text.
+        self.table.put_item(Item={'pk': key, 'turns': json.dumps(turns),
+                                  'expires_at': int(time.time()) + ttl})

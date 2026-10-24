@@ -19,6 +19,7 @@ class MemoryStore:
         # within DynamoDB do in production. Nothing persists between test instances.
         self.items = {}
         self.counts = {}
+        self.chats = {}
 
     def claim(self, key, fingerprint):
         # Match the adapter contract: None reserves new work; a dict means duplicate.
@@ -38,3 +39,9 @@ class MemoryStore:
         if self.counts.get(bucket, 0) >= limit:
             raise QuotaExceeded()
         self.counts[bucket] = self.counts.get(bucket, 0) + 1
+
+    def history(self, key):
+        return deepcopy(self.chats.get(key, []))
+
+    def save_history(self, key, turns, ttl):
+        self.chats[key] = deepcopy(turns)

@@ -29,6 +29,10 @@ log = logging.getLogger(__name__)
 KEYWORDS = {'STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT',
             'REVOKE', 'OPTOUT', 'HELP', 'INFO', 'START', 'UNSTOP', 'YES'}
 
+# /sms/reply conversation memory: exchanges kept per sender, and for how long.
+HISTORY_TURNS = 3
+HISTORY_TTL = 30 * 60
+
 
 class MessagingError(Exception):
     # Domain error understood by the HTTP exception handler. SNS invocations let
@@ -105,15 +109,27 @@ class MessagingService:
             self.store.consume(day + ':reply:' + sender_hash, self.config.daily_limit)
         except QuotaExceeded as error:
             raise MessagingError('daily_limit_reached', 429) from error
-        return {'reply': self._reply(text)}
+        # Keep the last few exchanges for 30 minutes so answers to Waypoint's
+        # follow-up question ("which cross street?") are understood.
+        key = 'chat:' + sender_hash
+        turns = self.store.history(key)
+        reply = self._reply(text, turns)
+        self.store.save_history(key, (turns + [[text, reply]])[-HISTORY_TURNS:], HISTORY_TTL)
+        return {'reply': reply}
 
-    def _reply(self, text):
-        # This is a single-turn text request with no history or tools. The Waypoint
-        # instructions limit recommendations to the verified list in resources.json.
+    def _reply(self, text, turns=()):
+        # No tools. Earlier [text, reply] pairs, if any, come first so Converse sees an
+        # alternating user/assistant conversation. The Waypoint instructions limit
+        # recommendations to the verified list in resources.json.
+        messages = []
+        for said, answered in turns:
+            messages += [{'role': 'user', 'content': [{'text': said}]},
+                         {'role': 'assistant', 'content': [{'text': answered}]}]
+        messages.append({'role': 'user', 'content': [{'text': text}]})
         response = self.bedrock.converse(
             modelId=self.config.model,
             system=[{'text': system_prompt()}],
-            messages=[{'role': 'user', 'content': [{'text': text}]}],
+            messages=messages,
             inferenceConfig={'maxTokens': 150},
         )
         # Converse returns content blocks. Collect only text blocks and treat an

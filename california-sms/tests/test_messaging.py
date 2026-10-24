@@ -251,5 +251,21 @@ def test_draft_reply_skips_keywords_and_enforces_quota(config):
         svc.draft_reply('judge', 'need food')
 
 
+def test_draft_reply_remembers_the_previous_exchange(config):
+    # A follow-up answer must reach Bedrock with the earlier question in context.
+    bedrock = Mock()
+    bedrock.converse.return_value = {'output': {'message': {'content': [{'text': 'Which cross street?'}]}}}
+    svc = MessagingService(config, MemoryStore(), Mock(), bedrock)
+    svc.draft_reply('+14085550123', 'we need food')
+    svc.draft_reply('+14085550123', 'Story and King')
+    messages = bedrock.converse.call_args.kwargs['messages']
+    assert [m['role'] for m in messages] == ['user', 'assistant', 'user']
+    assert messages[0]['content'][0]['text'] == 'we need food'
+    assert messages[1]['content'][0]['text'] == 'Which cross street?'
+    # Other senders do not see this conversation.
+    svc.draft_reply('+14085550199', 'water')
+    assert len(bedrock.converse.call_args.kwargs['messages']) == 1
+
+
 def test_reply_route_requires_token(client):
     assert client.post('/sms/reply', json={'sender': 'x', 'body': 'help'}).status_code == 401

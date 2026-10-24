@@ -2,7 +2,7 @@
 
 FastAPI application for sending SMS with AWS End User Messaging SMS and receiving messages through SNS → Lambda → Amazon Bedrock → SMS. The application uses real AWS clients and a DynamoDB ledger. Missing configuration stops startup. There is no simulation mode, fake reply, or public inbound webhook.
 
-The deployment region defaults to `us-east-1` (Oregon), with US recipients. The code has not yet been deployed or verified against your AWS account or a carrier. AWS account authentication, an approved dedicated SMS number, and Bedrock access are still required.
+The deployment region defaults to `us-east-1` (N. Virginia), with US recipients. The code has not yet been deployed or verified against your AWS account or a carrier. AWS account authentication, an approved dedicated SMS number, and Bedrock access are still required.
 
 ## Deploy
 
@@ -94,7 +94,92 @@ Incoming messages use the SNS Lambda handler and validate the SNS topic and dest
 
 ## Waypoint replies
 
-Bedrock answers as Waypoint. It may only recommend the verified locations in `src/app/resources.json`, replies in the sender's language, asks for the need and cross street when either is missing, and tells medical or life-threatening messages to call 911 and that a coordinator will follow up. Edit `resources.json` to change the list, then redeploy. The instructions live in `src/app/waypoint.py`.
+Bedrock answers as Waypoint. It may only recommend the verified locations in `src/app/resources.json`, replies in the sender's language, accepts a street address, cross street, neighborhood, or landmark as the location, asks for the need or location when either is missing, and tells medical or life-threatening messages to call 911 and that a coordinator will follow up. Edit `resources.json` to change the list, then redeploy. The instructions live in `src/app/waypoint.py`.
+
+## Demo: iPhone relay
+
+The hackathon AWS account cannot create IAM roles, so the SAM deploy fails, and a real SMS number needs carrier registration that takes days. For the demo, the API runs on a laptop and an iPhone relays the texts. Replies are still written by Amazon Bedrock with the Waypoint instructions above:
+
+text to the iPhone → Shortcuts automation → `POST /sms/reply` (through a tunnel to the laptop) → Bedrock → the iPhone texts the reply back.
+
+`POST /sms/reply` takes `{"sender": "...", "body": "..."}` and returns `{"reply": "..."}`. It needs the bearer token, sends nothing itself, skips the recipient allowlist, and allows 20 replies per sender per UTC day. It returns an empty reply for a bare opt-out keyword such as STOP. It remembers each sender's last 3 exchanges for 30 minutes (in the DynamoDB table, keyed by a hash of the number), so an answer to Waypoint's follow-up question such as "Story and King" is understood.
+
+### Prerequisites (macOS)
+
+- Python 3.12+ and the packages in `requirements-dev.txt`.
+- AWS CLI v2 and cloudflared: `brew install awscli cloudflared`.
+- AWS credentials for the us-east-1 account. In Workshop Studio, open **Get AWS CLI credentials** and paste the macOS/Linux `export` lines into the terminal. Never commit them. They expire, so paste fresh ones if replies stop.
+- Bedrock access to Amazon Nova Lite. Check it with:
+  ```bash
+  aws bedrock-runtime converse --region us-east-1 --model-id us.amazon.nova-lite-v1:0 \
+    --messages '[{"role":"user","content":[{"text":"say hi"}]}]' \
+    --query 'output.message.content[0].text' --output text
+  ```
+- An End User Messaging phone number, which the config check requires even though the iPhone sends the texts. The script defaults to the simulator number requested for this project. To request another, run the command below, then export `SMS_PHONE_NUMBER` and `SMS_ORIGINATION_ID` before starting the script:
+  ```bash
+  aws pinpoint-sms-voice-v2 request-phone-number --region us-east-1 --iso-country-code US \
+    --message-type TRANSACTIONAL --number-capabilities SMS --number-type SIMULATOR \
+    --query '[PhoneNumber,PhoneNumberArn]' --output text
+  ```
+
+### 1. Start the API
+
+```bash
+cd california-sms
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+bash scripts/run-local.sh
+```
+
+On first run, the script creates the `waypoint-sms-ledger` DynamoDB table and a random token in `~/.waypoint-token`, outside the repository. Leave it running.
+
+### 2. Open a public tunnel
+
+In a second terminal tab:
+
+```bash
+cloudflared tunnel --url http://localhost:8000
+```
+
+Copy the `https://<name>.trycloudflare.com` link. It changes every time cloudflared restarts. Test it from a third tab:
+
+```bash
+curl -s -X POST https://<name>.trycloudflare.com/sms/reply \
+  -H "Authorization: Bearer $(cat ~/.waypoint-token)" -H "Content-Type: application/json" \
+  -d '{"sender":"test","body":"3 of us near McLaughlin, we need water"}'
+```
+
+The reply should name Tully Community Center.
+
+### 3. Build the iPhone Shortcut
+
+Copy the token with `cat ~/.waypoint-token | pbcopy` and get it onto the iPhone (Universal Clipboard or AirDrop). Then, on the iPhone, open **Shortcuts → Automation → + → Message**:
+
+1. **Message Contains** a single space (so follow-up answers without the word "help" also trigger it), **Run Immediately**, **Notify When Run** off, then **Create New Shortcut**. Because this answers every text the phone receives, use a phone set aside for the demo and turn the automation off afterwards.
+2. **Get Contents of URL**: URL `https://<name>.trycloudflare.com/sms/reply`, Method **POST**.
+   - Headers: `Authorization` = `Bearer <token>`, `Content-Type` = `application/json`.
+   - Request Body **JSON**, two Text fields: `sender` = Shortcut Input → **Sender**, `body` = Shortcut Input → **Content**.
+3. **Get Dictionary Value** for key `reply` in Contents of URL.
+4. **If** Dictionary Value **has any value**.
+5. Inside the If, **Send Message**: Dictionary Value to Shortcut Input → **Sender**. Expand it and turn **Show Compose Sheet** (Show When Run on older iOS) off.
+
+Text `help, 3 of us near McLaughlin need water` to the iPhone from another phone. The Bedrock reply arrives in a few seconds.
+
+### On demo day
+
+- Paste fresh AWS credentials, then start `scripts/run-local.sh` and cloudflared again. If the tunnel link changed, update the URL in the Shortcut.
+- Keep the laptop awake (`caffeinate -d`) and the iPhone charging, unlocked, and on Wi-Fi.
+- Tell judges: "Text what you need and your nearest cross street to (iPhone number)."
+- To send everything as SMS rather than iMessage, turn off iMessage on the relay iPhone (Settings → Apps → Messages).
+- The token lives only in `~/.waypoint-token` and the Shortcut. Never put it in the website or the repository.
+
+### Cleanup
+
+Delete the Shortcut automation, then delete the table:
+
+```bash
+aws dynamodb delete-table --region us-east-1 --table-name waypoint-sms-ledger
+```
 
 ## Processing behavior
 
@@ -124,6 +209,7 @@ Tests inject isolated AWS test doubles without sending texts or contacting AWS. 
 - `src/app/inbound.py`: SNS Lambda entry point.
 - `src/app/store.py`: DynamoDB ledger and atomic quota enforcement.
 - `template.yaml`: infrastructure and IAM permissions.
+- `scripts/run-local.sh`: runs the API on a laptop for the iPhone relay demo.
 
 ## AWS references
 
