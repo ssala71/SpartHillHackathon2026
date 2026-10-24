@@ -71,6 +71,12 @@ export default function RequestsPage({ setSplitPanel }) {
         loading={loading}
         loadingText="Loading requests"
         trackBy="id"
+        wrapLines
+        // With the detail panel open, keep only the columns needed to pick a request.
+        columnDisplay={['urgency', 'message', 'needs', 'location', 'status', 'received'].map((id) => ({
+          id,
+          visible: !selected || ['urgency', 'message', 'status'].includes(id),
+        }))}
         variant="full-page"
         selectionType="single"
         selectedItems={selected ? [selected] : []}
@@ -99,16 +105,29 @@ export default function RequestsPage({ setSplitPanel }) {
         }
         filter={<TextFilter {...filterProps} filteringPlaceholder="Search messages, locations, needs" countText={`${filteredItemsCount} matches`} />}
         columnDefinitions={[
-          { id: 'urgency', header: 'Urgency', cell: (r) => <UrgencyBadge urgency={r.urgency} />, width: 110 },
-          { id: 'message', header: 'Message', cell: (r) => r.message, maxWidth: 380 },
+          { id: 'urgency', header: 'Urgency', cell: (r) => <UrgencyBadge urgency={r.urgency} /> },
+          { id: 'message', header: 'Message', cell: (r) => r.message },
           {
             id: 'needs',
             header: 'Needs',
             cell: (r) => (r.needs?.length ? r.needs.map(needLabel).join(', ') : <Box color="text-status-inactive">Unclear</Box>),
           },
           { id: 'location', header: 'Location', cell: (r) => r.location_description ?? <Box color="text-status-inactive">Missing</Box> },
-          { id: 'status', header: 'Status', cell: (r) => <RequestStatus request={r} /> },
-          { id: 'next', header: 'Next action', cell: (r) => r.suggested_match?.next_action ?? '-' },
+          {
+            id: 'status',
+            header: 'Status',
+            minWidth: 170,
+            cell: (r) => (
+              <>
+                <RequestStatus request={r} />
+                {r.suggested_match?.next_action && (
+                  <Box variant="small" color="text-body-secondary" display="block">
+                    {r.suggested_match.next_action}
+                  </Box>
+                )}
+              </>
+            ),
+          },
           { id: 'received', header: 'Received', cell: (r) => timeAgo(r.created_at), sortingField: 'created_at' },
         ]}
       />

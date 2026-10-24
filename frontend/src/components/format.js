@@ -10,7 +10,7 @@ export function timeAgo(iso) {
 // Only show the last four digits of a phone number on screen.
 export const maskPhone = (phone) => (phone ? `•••• ${phone.slice(-4)}` : 'Unknown')
 
-export const NEED_LABELS = {
+const NEED_LABELS = {
   water: 'Water',
   food: 'Food',
   charging: 'Charging',

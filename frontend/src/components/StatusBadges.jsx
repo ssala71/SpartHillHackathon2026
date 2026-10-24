@@ -19,7 +19,7 @@ const REQUEST_STATUS = {
 }
 
 export function RequestStatus({ request }) {
-  if (request.processing_error) return <StatusIndicator type="error">Processing failed</StatusIndicator>
+  if (request.processing_error) return <StatusIndicator type="error">Failed</StatusIndicator>
   return <StatusIndicator type={REQUEST_STATUS[request.status] ?? 'pending'}>{splitWords(request.status)}</StatusIndicator>
 }
 

@@ -260,17 +260,21 @@ const mockApi = {
   },
   async updateAssignment(id, patch) {
     await delay()
-    const record = patchRecord('assignments', id, patch)
+    // notify: false is used by Undo, so reverting a step never re-texts the requester.
+    const { notify = true, ...changes } = patch
+    const record = patchRecord('assignments', id, changes)
     const request = findRequest(record.request_id)
     const es = request.language === 'es'
     log(request, `Assignment ${patch.status}`)
+    if (patch.status === 'Completed') request.status = 'Completed'
+    else if (['Declined', 'Cancelled'].includes(patch.status)) request.status = 'NeedsReview'
+    else request.status = 'Assigned'
+    if (!notify) return record
     // Delivery is only promised to the requester once someone has accepted it.
     if (patch.status === 'Accepted') {
       sendSms(request, es ? 'Un voluntario aceptó su entrega. Le avisaremos cuando salga.' : 'A volunteer has accepted your delivery. We will text you when they are on the way.')
     }
     if (patch.status === 'InProgress') sendSms(request, es ? 'Su entrega va en camino.' : 'Your delivery is on the way.')
-    if (patch.status === 'Completed') request.status = 'Completed'
-    if (['Declined', 'Cancelled'].includes(patch.status)) request.status = 'NeedsReview'
     return record
   },
 }

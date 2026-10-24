@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import Button from '@cloudscape-design/components/button'
 import { api } from '../api/client.js'
 
 const DataContext = createContext(null)
@@ -35,20 +36,44 @@ export function DataProvider({ children }) {
     refresh()
   }, [refresh])
 
-  const notify = useCallback((type, content) => {
+  const notify = useCallback((type, content, undo) => {
     const id = crypto.randomUUID()
     const dismiss = () => setFlashes((items) => items.filter((item) => item.id !== id))
-    setFlashes((items) => [{ id, type, content, dismissible: true, onDismiss: dismiss }, ...items].slice(0, 3))
-    if (type === 'success') setTimeout(dismiss, 5000)
+    const action = undo ? (
+      <Button
+        onClick={() => {
+          dismiss()
+          undo()
+        }}
+      >
+        Undo
+      </Button>
+    ) : undefined
+    setFlashes((items) => [{ id, type, content, action, dismissible: true, onDismiss: dismiss }, ...items].slice(0, 1))
+    if (type === 'success') setTimeout(dismiss, undo ? 10000 : 5000)
   }, [])
 
   // Runs a change against the API, then reloads everything and reports the outcome.
+  // Pass `undo` ((api, result) => Promise) to offer an Undo button on the confirmation.
   const run = useCallback(
-    async (action, successMessage) => {
+    async (action, successMessage, undo) => {
       try {
         const result = await action(api)
         await refresh()
-        if (successMessage) notify('success', successMessage)
+        if (successMessage) {
+          const undoIt = undo
+            ? async () => {
+                try {
+                  await undo(api, result)
+                  await refresh()
+                  notify('success', 'Undone.')
+                } catch (err) {
+                  notify('error', `Couldn't undo: ${err.message}`)
+                }
+              }
+            : undefined
+          notify('success', successMessage, undoIt)
+        }
         return result
       } catch (err) {
         notify('error', err.message)
@@ -58,9 +83,7 @@ export function DataProvider({ children }) {
     [refresh, notify],
   )
 
-  return (
-    <DataContext.Provider value={{ ...data, loading, error, refresh, run, flashes }}>{children}</DataContext.Provider>
-  )
+  return <DataContext.Provider value={{ ...data, loading, error, refresh, run, flashes }}>{children}</DataContext.Provider>
 }
 
 // eslint-disable-next-line react/only-export-components

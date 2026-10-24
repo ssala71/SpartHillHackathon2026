@@ -4,9 +4,8 @@ const STEPS = ['Received', 'Saved', 'Bedrock', 'Matched', 'Replied']
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-// A damped spring pulls the marker toward the current step, so it overshoots
-// slightly and settles instead of sliding at constant speed.
-function useSpring(target, { stiffness = 170, damping = 16 } = {}) {
+// A critically damped spring eases the marker into each step without overshoot.
+function useSpring(target, { stiffness = 120, damping = 22 } = {}) {
   const [value, setValue] = useState(target)
   const state = useRef({ x: target, v: 0 })
 
@@ -38,21 +37,32 @@ function useSpring(target, { stiffness = 170, damping = 16 } = {}) {
 
 export default function PipelineTracker({ step, failed = false, busy = false }) {
   const position = useSpring(step)
-  const percent = (position / (STEPS.length - 1)) * 100
+  const percent = Math.max(0, Math.min(100, (position / (STEPS.length - 1)) * 100))
+  const tone = failed ? 'bg-danger' : 'bg-accent'
 
   return (
-    <div className={`pipeline-track${failed ? ' is-failed' : ''}`} role="list" aria-label="Processing steps">
-      <div className="pipeline-rail" aria-hidden="true">
-        <div className="pipeline-fill" style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
-        <div className={`pipeline-marker${busy ? ' is-busy' : ''}`} style={{ left: `${percent}%` }} />
+    <div role="list" aria-label="Processing steps">
+      {/* The rail runs between the first and last label centers. */}
+      <div className="relative mx-[10%] mb-3 h-1 rounded-full bg-line" aria-hidden="true">
+        <div className={`absolute inset-y-0 left-0 rounded-full transition-colors duration-200 ${tone}`} style={{ width: `${percent}%` }} />
+        {step >= 0 && (
+          <div
+            className={`absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-4 ring-bg transition-colors duration-200 ${tone}`}
+            style={{ left: `${percent}%` }}
+          >
+            {busy && <span className={`absolute inset-0 animate-ping rounded-full opacity-40 ${tone}`} />}
+          </div>
+        )}
       </div>
-      <div className="pipeline-labels">
+      <div className="flex text-[13px]">
         {STEPS.map((label, i) => (
           <span
             key={label}
             role="listitem"
             aria-current={i === step ? 'step' : undefined}
-            className={i < step ? 'done' : i === step ? (failed ? 'failed' : 'current') : ''}
+            className={`flex-1 text-center transition-colors duration-300 ${
+              i === step && failed ? 'font-semibold text-danger' : i <= step ? 'font-medium text-text' : 'text-muted'
+            }`}
           >
             {label}
           </span>

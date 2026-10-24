@@ -22,7 +22,12 @@ export default function IncidentsPage() {
 
   const setStatus = async (incident, status, message) => {
     setBusyId(incident.id)
-    await run((api) => (status === 'Active' ? api.sendAlert(incident.id) : api.updateIncident(incident.id, { status })), message)
+    // A sent alert can't be unsent, so only status changes like Resolve offer Undo.
+    await run(
+      (api) => (status === 'Active' ? api.sendAlert(incident.id) : api.updateIncident(incident.id, { status })),
+      message,
+      status === 'Active' ? undefined : (api) => api.updateIncident(incident.id, { status: incident.status }),
+    )
     setBusyId(null)
   }
 
@@ -52,7 +57,7 @@ export default function IncidentsPage() {
         columnDefinitions={[
           { id: 'name', header: 'Incident', cell: (i) => <b>{i.name}</b> },
           { id: 'area', header: 'Affected area', cell: (i) => i.affected_area },
-          { id: 'status', header: 'Status', cell: (i) => <Status value={i.status} /> },
+          { id: 'status', header: 'Status', cell: (i) => <Status value={i.status} />, minWidth: 120 },
           { id: 'alert', header: 'Alert text', cell: (i) => i.alert_text || <Box color="text-status-inactive">Not written</Box>, maxWidth: 360 },
           { id: 'requests', header: 'Requests', cell: (i) => requests.filter((r) => r.incident_id === i.id).length },
           { id: 'created', header: 'Created', cell: (i) => timeAgo(i.created_at) },
@@ -69,6 +74,20 @@ export default function IncidentsPage() {
                 {i.status === 'Active' && (
                   <Button loading={busyId === i.id} onClick={() => setStatus(i, 'Resolved', `${i.name} resolved.`)}>
                     Resolve
+                  </Button>
+                )}
+                {i.status === 'Resolved' && (
+                  <Button
+                    loading={busyId === i.id}
+                    onClick={() =>
+                      run(
+                        (api) => api.updateIncident(i.id, { status: 'Active' }),
+                        `${i.name} reopened.`,
+                        (api) => api.updateIncident(i.id, { status: 'Resolved' }),
+                      )
+                    }
+                  >
+                    Reopen
                   </Button>
                 )}
                 {!['Resolved', 'Cancelled'].includes(i.status) && <Button onClick={() => setEditing(i)}>Edit</Button>}

@@ -28,23 +28,42 @@ export default function ResourcesPage() {
           loading={loading}
           loadingText="Loading resources"
           trackBy="id"
+          wrapLines
           header={<Header counter={`(${resources.length})`}>Resources</Header>}
           empty={<Box textAlign="center">No resources yet. Add the demo dataset to get started.</Box>}
           columnDefinitions={[
-            { id: 'name', header: 'Name', cell: (r) => <b>{r.name}</b> },
-            { id: 'type', header: 'Type', cell: (r) => r.resource_type },
+            {
+              id: 'name',
+              header: 'Resource',
+              cell: (r) => (
+                <>
+                  <b>{r.name}</b>
+                  <Box variant="small" color="text-body-secondary" display="block">
+                    {r.resource_type} · {r.address}
+                  </Box>
+                </>
+              ),
+            },
             { id: 'services', header: 'Services', cell: (r) => r.services?.map(needLabel).join(', ') ?? '-' },
-            { id: 'status', header: 'Status', cell: (r) => <Status value={r.status} /> },
+            { id: 'status', header: 'Status', cell: (r) => <Status value={r.status} />, minWidth: 190 },
             {
               id: 'verified',
-              header: 'Last verified',
+              header: 'Verified',
               cell: (r) => {
                 const stale = (Date.now() - new Date(r.last_verified_at)) / 60_000 > STALE_MINUTES
-                return <Box color={stale ? 'text-status-warning' : 'inherit'}>{timeAgo(r.last_verified_at)}{stale ? ' (stale)' : ''}</Box>
+                return (
+                  <>
+                    <Box color={stale ? 'text-status-warning' : 'inherit'}>
+                      {timeAgo(r.last_verified_at)}
+                      {stale ? ' (stale)' : ''}
+                    </Box>
+                    <Box variant="small" color="text-body-secondary" display="block">
+                      {r.source}
+                    </Box>
+                  </>
+                )
               },
             },
-            { id: 'source', header: 'Source', cell: (r) => r.source ?? '-' },
-            { id: 'address', header: 'Address', cell: (r) => r.address },
           ]}
         />
 
@@ -62,7 +81,11 @@ export default function ResourcesPage() {
           submitEdit={async (item, column, value) => {
             if (value === undefined) return
             const quantity = Number(value)
-            await run((api) => api.updateInventoryItem(item.id, { quantity }), `${item.item_name} at ${resourceName(item.resource_id)} set to ${quantity}.`)
+            await run(
+              (api) => api.updateInventoryItem(item.id, { quantity }),
+              `${item.item_name} at ${resourceName(item.resource_id)} set to ${quantity}.`,
+              (api) => api.updateInventoryItem(item.id, { quantity: item.quantity, status: item.status }),
+            )
           }}
           columnDefinitions={[
             { id: 'item', header: 'Item', cell: (i) => i.item_name },
@@ -85,7 +108,7 @@ export default function ResourcesPage() {
                 ),
               },
             },
-            { id: 'status', header: 'Status', cell: (i) => <Status value={i.status} /> },
+            { id: 'status', header: 'Status', cell: (i) => <Status value={i.status} />, minWidth: 140 },
             { id: 'expires', header: 'Expires', cell: (i) => i.expiration_date ?? '-' },
           ]}
         />

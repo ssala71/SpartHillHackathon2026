@@ -1,7 +1,9 @@
 # Waypoint coordinator dashboard (frontend)
 
-React 19 + Vite + [Cloudscape](https://cloudscape.design) (AWS's open-source design system), themed with
-white and dark blue and Public Sans in `src/theme.js`. Light and dark mode follow the system and can be toggled in the header.
+React 19 + Vite. The admin console uses [Cloudscape](https://cloudscape.design), AWS's open-source design system,
+themed white and dark blue in `src/theme.js`. The public demo and the shared top bar use Tailwind CSS v4 with the
+same color tokens (`src/index.css`). Tailwind's preflight reset is left out so it never changes Cloudscape's styles.
+Light and dark mode follow the system and can be toggled from the top bar; the Demo/Admin switch sits beside it.
 
 ## Run it
 
@@ -26,15 +28,20 @@ Other commands: `pnpm build`, `pnpm lint`, `pnpm preview`.
 
 ## Pages
 
+**Public demo** (`#/`): a phone on screen. Text as a resident (or as Maria, or in Spanish) or tap a sample message, and watch it move
+through Received, Saved, Bedrock, Matched, Replied. A side card shows what Waypoint understood and the result.
+"Simulate a Bedrock failure" shows the saved message being retried.
+
+**Admin** (`#/admin`), the coordinator console:
+
 | Page | What it does |
 | --- | --- |
-| Overview | Counts that need attention, active incidents, prototype disclaimer |
-| Requests | SMS requests sorted by urgency, filter by Needs review / Open / All. Click a row for the original SMS, extracted fields, suggested match with source and verification time, and actions: retry failed processing, approve and send location, send follow-up, assign delivery, cancel |
-| Incidents and alerts | Create or edit an incident, write the SMS alert (with a 160-character counter), send it, resolve it |
-| Resources and inventory | Resource status, services, source, last verified (stale after 4 h). Click an inventory quantity to edit it; matches update on the next load |
-| Live demo (home, `#/demo`) | A phone on screen. Text as a resident (presets for medical, Spanish, unclear, STOP) and watch the message get saved, read by Bedrock, matched, and answered. A spring-animated tracker shows which step it is on. Can force a Bedrock timeout to show recovery |
-| How it works | Pipeline with the AWS service at each step, the decision rules, what Bedrock does and doesn't do, safety limits |
-| Assignments | Pending → Accepted → In progress → Delivered, or Declined/Cancelled (which returns the request to review) |
+| Overview | Counts that need attention and active incidents |
+| Requests | Queue sorted by urgency. Open one for the SMS thread, Bedrock fields, suggested match, timeline, and actions (approve, retry, assign, cancel) |
+| Incidents and alerts | Create an incident, write and send the SMS alert, resolve it |
+| Resources and inventory | Resource status and verification time; click a quantity to edit stock |
+| Assignments | Pending → Accepted → In progress → Delivered |
+| How it works | The AWS pipeline and decision rules |
 
 ## Code layout
 
@@ -44,9 +51,11 @@ src/
   api/mockData.js     simulated incidents, requests, resources, inventory, assignments
   api/matching.js     mock-only matching so inventory edits change matches
   api/mockBedrock.js  mock-only keyword extractor + SMS reply rules (stand-in for Bedrock)
-  hooks/DataContext.jsx  loads everything, run(action, message) for changes + toasts
-  components/         status badges, formatting helpers
-  pages/              one file per page; RequestDetail.jsx is the side panel
+  hooks/DataContext.jsx  loads everything; run(action, message, undo) for changes, toasts and Undo
+  components/         TopBar (shared header), PipelineTracker, SMS thread, status badges, formatting helpers
+  pages/              DemoPage.jsx (public) and the admin pages; RequestDetail.jsx is the side panel
+  theme.js            Cloudscape theme and light/dark mode
+  index.css           Tailwind setup, color tokens for both modes, shared SMS and timeline styles
 ```
 
 ## API the frontend expects

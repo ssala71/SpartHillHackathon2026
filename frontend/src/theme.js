@@ -1,14 +1,13 @@
-// Waypoint look on top of Cloudscape: white surfaces, dark blue accents, Public Sans.
+// Waypoint look on top of Cloudscape: white surfaces, dark blue accents, the system font.
 import { applyTheme } from '@cloudscape-design/components/theming'
 import { applyMode, Mode } from '@cloudscape-design/global-styles'
-import '@fontsource-variable/public-sans'
 
 const brand = { light: '#1f3b73', dark: '#8fb3ff' }
 const brandHover = { light: '#162d5a', dark: '#b3ccff' }
 const brandActive = { light: '#10224a', dark: '#d2e0ff' }
 const onBrand = { light: '#ffffff', dark: '#0b1730' }
 
-const FONT = "'Public Sans Variable', 'Helvetica Neue', Arial, sans-serif"
+const FONT = "ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
 
 applyTheme({
   theme: {
@@ -41,14 +40,12 @@ applyTheme({
       colorTextSegmentActive: onBrand,
       colorBackgroundProgressBarValueDefault: brand,
       colorBackgroundLayoutToggleActive: brand,
-    },
-    contexts: {
-      'top-navigation': {
-        tokens: {
-          colorBackgroundContainerContent: '#0b1f3a',
-          colorTextAccent: '#8fb3ff',
-        },
-      },
+      // Navy surfaces in dark mode, matching the top bar and the public demo.
+      colorBackgroundLayoutMain: { light: '#ffffff', dark: '#0b1220' },
+      colorBackgroundLayoutPanelContent: { light: '#ffffff', dark: '#0b1220' },
+      colorBackgroundContainerContent: { light: '#ffffff', dark: '#111a2c' },
+      colorBackgroundContainerHeader: { light: '#ffffff', dark: '#111a2c' },
+      colorBackgroundInputDefault: { light: '#ffffff', dark: '#0b1220' },
     },
   },
 })
@@ -67,7 +64,7 @@ export function getMode() {
 
 export function setMode(mode, persist = true) {
   applyMode(mode === 'dark' ? Mode.Dark : Mode.Light)
-  document.documentElement.dataset.mode = mode
+  document.documentElement.classList.toggle('dark', mode === 'dark')
   if (!persist) return
   try {
     localStorage.setItem(STORAGE_KEY, mode)

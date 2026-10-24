@@ -27,11 +27,13 @@ export default function RequestDetail({ request, onClose }) {
   const assignment = assignments.find((a) => a.request_id === request.id && !['Declined', 'Cancelled'].includes(a.status))
   const closed = ['Completed', 'Cancelled'].includes(request.status)
 
-  const act = async (key, action, message) => {
+  const act = async (key, action, message, undo) => {
     setBusy(key)
-    await run(action, message)
+    await run(action, message, undo)
     setBusy(null)
   }
+  // Puts the request back to the status it had before this change.
+  const restoreStatus = (status) => (api) => api.updateRequest(request.id, { status })
 
   return (
     <SplitPanel header={`Request from ${maskPhone(request.source_phone)}`} closeBehavior="hide" hidePreferencesButton>
@@ -41,7 +43,10 @@ export default function RequestDetail({ request, onClose }) {
             type="error"
             header="Bedrock processing failed"
             action={
-              <Button loading={busy === 'retry'} onClick={() => act('retry', (api) => api.processRequest(request.id), 'Bedrock processed the saved message.')}>
+              <Button
+                loading={busy === 'retry'}
+                onClick={() => act('retry', (api) => api.processRequest(request.id), 'Bedrock processed the saved message.')}
+              >
                 Retry processing
               </Button>
             }
@@ -56,7 +61,13 @@ export default function RequestDetail({ request, onClose }) {
           </Alert>
         )}
 
-        <Container header={<Header variant="h3" description={`Received ${timeAgo(request.created_at)}`}>SMS conversation</Header>}>
+        <Container
+          header={
+            <Header variant="h3" description={`Received ${timeAgo(request.created_at)}`}>
+              SMS conversation
+            </Header>
+          }
+        >
           <SmsThread messages={request.messages ?? [{ direction: 'in', body: request.message, at: request.created_at }]} />
         </Container>
 
@@ -99,13 +110,31 @@ export default function RequestDetail({ request, onClose }) {
           </Alert>
         )}
 
+        {closed && (
+          <SpaceBetween direction="horizontal" size="xs">
+            <Button
+              loading={busy === 'reopen'}
+              onClick={() =>
+                act('reopen', (api) => api.updateRequest(request.id, { status: 'NeedsReview' }), 'Request reopened.', restoreStatus(request.status))
+              }
+            >
+              Reopen request
+            </Button>
+            <Button variant="link" onClick={onClose}>
+              Close
+            </Button>
+          </SpaceBetween>
+        )}
+
         {!closed && !request.processing_error && (
           <SpaceBetween direction="horizontal" size="xs">
             {match?.resource_id && request.status === 'NeedsReview' && (
               <Button
                 variant="primary"
                 loading={busy === 'approve'}
-                onClick={() => act('approve', (api) => api.approveMatch(request.id), 'Match approved and location sent by SMS.')}
+                onClick={() =>
+                  act('approve', (api) => api.approveMatch(request.id), 'Match approved and location sent by SMS.', restoreStatus(request.status))
+                }
               >
                 Approve and send location
               </Button>
@@ -122,7 +151,9 @@ export default function RequestDetail({ request, onClose }) {
             {!assignment && <Button onClick={() => setAssignOpen(true)}>Assign delivery</Button>}
             <Button
               loading={busy === 'cancel'}
-              onClick={() => act('cancel', (api) => api.updateRequest(request.id, { status: 'Cancelled' }), 'Request cancelled.')}
+              onClick={() =>
+                act('cancel', (api) => api.updateRequest(request.id, { status: 'Cancelled' }), 'Request cancelled.', restoreStatus(request.status))
+              }
             >
               Cancel request
             </Button>
@@ -153,8 +184,13 @@ function AssignModal({ request, onDismiss }) {
   const submit = async () => {
     setSubmitting(true)
     const result = await run(
-      (api) => api.createAssignment({ request_id: request.id, resource_id: resource.value, coordinator_name: coordinator || null, notes: notes || null }),
+      (api) =>
+        api.createAssignment({ request_id: request.id, resource_id: resource.value, coordinator_name: coordinator || null, notes: notes || null }),
       'Assignment created. It stays pending until someone accepts it.',
+      async (api, created) => {
+        await api.updateAssignment(created.id, { status: 'Cancelled', notify: false })
+        await api.updateRequest(request.id, { status: request.status })
+      },
     )
     setSubmitting(false)
     if (result) onDismiss()
@@ -181,7 +217,12 @@ function AssignModal({ request, onDismiss }) {
       <Form>
         <SpaceBetween size="m">
           <FormField label="Resource">
-            <Select selectedOption={resource} onChange={({ detail }) => setResource(detail.selectedOption)} options={options} placeholder="Choose a resource" />
+            <Select
+              selectedOption={resource}
+              onChange={({ detail }) => setResource(detail.selectedOption)}
+              options={options}
+              placeholder="Choose a resource"
+            />
           </FormField>
           <FormField label="Volunteer or coordinator" description="Optional. Leave blank until someone takes it.">
             <Input value={coordinator} onChange={({ detail }) => setCoordinator(detail.value)} />

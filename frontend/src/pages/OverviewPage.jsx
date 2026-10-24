@@ -37,35 +37,13 @@ export default function OverviewPage() {
             {error}
           </Alert>
         )}
-        <Container header={<Header variant="h2">Who this is for</Header>}>
-          <ColumnLayout columns={2} variant="text-grid">
-            <SpaceBetween size="xs">
-              <Box variant="h3">Maria, San José resident</Box>
-              <Box>
-                The power is out across east San José. Maria is near Tully Road with her grandmother, whose medical device needs charging. Her
-                phone has a few bars of signal but no data, and city websites won't load.
-              </Box>
-              <Box color="text-body-secondary">
-                She texts one number in plain words, in English or Spanish, and gets back a verified place nearby, or a coordinator steps in.
-              </Box>
-            </SpaceBetween>
-            <SpaceBetween size="xs">
-              <Box variant="h3">The coordinator on this screen</Box>
-              <Box>
-                Sees every request as it arrives, with urgent and medical ones first. Checks what Bedrock understood, approves matches, assigns
-                deliveries, and keeps resource and stock information current.
-              </Box>
-              <Link href="#/demo">Try it as Maria in the live demo</Link>
-            </SpaceBetween>
-          </ColumnLayout>
-        </Container>
         <Container header={<Header variant="h2">Right now</Header>}>
           <ColumnLayout columns={5} variant="text-grid">
-            <Stat label="Needs review" value={needsReview} href="#/requests" loading={loading} />
-            <Stat label="Failed processing" value={failed} href="#/requests" loading={loading} />
-            <Stat label="Pending assignments" value={pendingAssignments} href="#/assignments" loading={loading} />
-            <Stat label="Low or out of stock" value={lowStock} href="#/resources" loading={loading} />
-            <Stat label="Total requests" value={requests.length} href="#/requests" loading={loading} />
+            <Stat label="Needs review" value={needsReview} href="#/admin/requests" loading={loading} />
+            <Stat label="Failed processing" value={failed} href="#/admin/requests" loading={loading} />
+            <Stat label="Pending assignments" value={pendingAssignments} href="#/admin/assignments" loading={loading} />
+            <Stat label="Low or out of stock" value={lowStock} href="#/admin/resources" loading={loading} />
+            <Stat label="Total requests" value={requests.length} href="#/admin/requests" loading={loading} />
           </ColumnLayout>
         </Container>
         <Container header={<Header variant="h2">Active incidents</Header>}>

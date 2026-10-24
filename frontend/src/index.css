@@ -1,117 +1,187 @@
+/* Tailwind without its preflight reset, so Cloudscape's own styles in the admin stay untouched.
+   Unlayered on purpose: Cloudscape's global styles are unlayered too, and layered utilities would lose to them. */
+@import 'tailwindcss/theme.css';
+@import 'tailwindcss/utilities.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Theme tokens. Components use these through the Tailwind colors below,
+   so light and dark mode switch in one place. */
 :root {
-  --wp-bubble-in: #e9ebed;
-  --wp-bubble-in-text: #0f141a;
-  --wp-bubble-out: #1f3b73;
-  --wp-bubble-out-text: #ffffff;
-  --wp-muted: #5f6b7a;
-  --wp-line: #d5dbdb;
-  --wp-surface: #ffffff;
-  --wp-phone-frame: #0b1f3a;
-  --wp-accent: #1f3b73;
-  --wp-rail: #e3e9f3;
-  --wp-danger: #b42318;
-  /* Underdamped spring: quick rise, small overshoot, settle */
-  --wp-spring: linear(0, 0.21 6%, 0.66 14%, 1.02 24%, 1.12 30%, 1.08 37%, 0.99 48%, 0.98 56%, 1 70%, 1);
+  --bg: #ffffff;
+  --panel: #f5f6f8;
+  --raised: #ffffff;
+  --line: #e4e7ec;
+  --text: #0b1b33;
+  --muted: #667085;
+  --accent: #1f3b73;
+  --accent-hover: #162d5a;
+  --accent-fg: #ffffff;
+  --accent-soft: #eaf0fa;
+  --bubble-in: #eef0f3;
+  --warn: #9a5b00;
+  --warn-soft: #fff4e0;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --ok: #157f3c;
+  --ok-soft: #e7f6ec;
+  color-scheme: light;
 }
-:root[data-mode='dark'] {
-  --wp-bubble-in: #2a2f36;
-  --wp-bubble-in-text: #e9ebed;
-  --wp-bubble-out: #8fb3ff;
-  --wp-bubble-out-text: #0b1730;
-  --wp-muted: #a4adb8;
-  --wp-line: #3a4048;
-  --wp-surface: #161d26;
-  --wp-phone-frame: #2a3a55;
-  --wp-accent: #8fb3ff;
-  --wp-rail: #233150;
-  --wp-danger: #ff8a7a;
+.dark {
+  --bg: #0b1220;
+  --panel: #111a2c;
+  --raised: #16213a;
+  --line: #24304a;
+  --text: #e8edf6;
+  --muted: #95a1b8;
+  --accent: #8fb3ff;
+  --accent-hover: #b3ccff;
+  --accent-fg: #0b1730;
+  --accent-soft: #1a2a4a;
+  --bubble-in: #1f2a40;
+  --warn: #f5b84a;
+  --warn-soft: #3a2b10;
+  --danger: #ff8a7a;
+  --danger-soft: #3d1a17;
+  --ok: #5fd08a;
+  --ok-soft: #12301f;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-bubble-in: var(--bubble-in);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --ease-apple: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-in: rise 360ms var(--ease-apple) both;
+  --animate-sheet: sheet 320ms var(--ease-apple) both;
+  --animate-fade: fade 200ms ease-out both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  @keyframes sheet {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
 }
 body {
   margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
-
-/* SMS conversation bubbles */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* A light reset for the Tailwind views only (top bar and public demo).
+   Element-level specificity: it beats the browser and normalize defaults, and any utility class beats it. */
+:where(.wp) *,
+:where(.wp) ::before,
+:where(.wp) ::after {
+  box-sizing: border-box;
+}
+:where(.wp) h1,
+:where(.wp) h2,
+:where(.wp) h3,
+:where(.wp) p,
+:where(.wp) dl,
+:where(.wp) dd,
+:where(.wp) ol,
+:where(.wp) ul {
+  margin: 0;
+  padding: 0;
+}
+:where(.wp) button,
+:where(.wp) input {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+  border: 0;
+  background: none;
+}
+:where(.wp) button {
+  cursor: pointer;
+}
+:where(.wp) button:disabled {
+  cursor: default;
+}
+:where(.wp) a {
+  color: inherit;
+  text-decoration: none;
+}
+/* Shared pieces used by both the demo and the admin. */
 .sms-thread {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 .sms-bubble {
   max-width: 80%;
   padding: 8px 12px;
-  border-radius: 16px;
-  font-size: 14px;
-  line-height: 1.4;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.35;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  animation: var(--animate-in);
 }
 .sms-in {
   align-self: flex-start;
-  background: var(--wp-bubble-in);
-  color: var(--wp-bubble-in-text);
-  border-bottom-left-radius: 4px;
+  background: var(--bubble-in);
+  color: var(--text);
+  border-bottom-left-radius: 6px;
 }
 .sms-out {
   align-self: flex-end;
-  background: var(--wp-bubble-out);
-  color: var(--wp-bubble-out-text);
-  border-bottom-right-radius: 4px;
-}
-.sms-system {
-  align-self: center;
-  font-size: 12px;
-  color: var(--wp-muted);
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-bottom-right-radius: 6px;
 }
 .sms-time {
   font-size: 11px;
-  opacity: 0.7;
+  opacity: 0.65;
   margin-top: 2px;
 }
-
-/* Phone frame for the simulator */
-.phone {
-  width: 340px;
-  max-width: 100%;
-  margin: 0 auto;
-  border: 10px solid var(--wp-phone-frame);
-  border-radius: 36px;
-  background: var(--wp-surface);
-  color: var(--wp-bubble-in-text);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  height: 600px;
-}
-.phone-header {
-  padding: 14px 16px 10px;
+.sms-empty {
+  color: var(--muted);
+  font-size: 14px;
   text-align: center;
-  border-bottom: 1px solid var(--wp-line);
-  font-size: 13px;
-}
-.phone-header strong {
-  display: block;
-  font-size: 15px;
-}
-.phone-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-}
-.phone-compose {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-.phone-compose-field {
-  flex: 1;
-  min-width: 0;
-}
-.phone-input {
-  border-top: 1px solid var(--wp-line);
-  padding: 8px;
+  margin: 0;
 }
 
-/* Processing timeline */
+/* Processing timeline in the request detail */
 .timeline {
   list-style: none;
   margin: 0;
@@ -127,112 +197,35 @@ body {
 }
 .timeline time {
   font-variant-numeric: tabular-nums;
-  color: var(--wp-muted);
+  color: var(--muted);
   font-size: 12px;
   padding-top: 2px;
 }
 
-/* Architecture diagram */
+/* How it works diagram */
 .pipeline {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
 }
 .pipeline-step {
-  border: 1px solid var(--wp-line);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px;
   min-width: 0;
 }
 .pipeline-step .svc {
   font-size: 12px;
-  color: var(--wp-accent);
+  color: var(--accent);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-
-/* New messages spring in */
-.sms-bubble {
-  animation: wp-pop 520ms var(--wp-spring) both;
-  transform-origin: bottom left;
-}
-.sms-out {
-  transform-origin: bottom right;
-}
-@keyframes wp-pop {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.85);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-/* Live pipeline tracker */
-.pipeline-track {
-  padding: 6px 12px 0;
-}
-.pipeline-rail {
-  position: relative;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--wp-rail);
-  margin: 10px 10% 14px; /* rail runs between the first and last label centers */
-}
-.pipeline-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 3px;
-  background: var(--wp-accent);
-}
-.pipeline-marker {
-  position: absolute;
-  top: 50%;
-  width: 18px;
-  height: 18px;
-  margin: -9px 0 0 -9px;
-  transition: background 200ms;
-  border-radius: 50%;
-  background: var(--wp-accent);
-  box-shadow: 0 0 0 4px var(--wp-surface);
-}
-.pipeline-marker.is-busy {
-  animation: wp-pulse 1s ease-in-out infinite;
-}
-.is-failed .pipeline-marker,
-.is-failed .pipeline-fill {
-  background: var(--wp-danger);
-}
-@keyframes wp-pulse {
-  50% {
-    box-shadow: 0 0 0 4px var(--wp-surface), 0 0 0 10px color-mix(in srgb, var(--wp-accent) 25%, transparent);
-  }
-}
-.pipeline-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: var(--wp-muted);
-}
-.pipeline-labels span {
-  flex: 1;
-  text-align: center;
-}
-.pipeline-labels .done,
-.pipeline-labels .current {
-  color: inherit;
-  font-weight: 700;
-}
-.pipeline-labels .failed {
-  color: var(--wp-danger);
-  font-weight: 700;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .sms-bubble,
-  .pipeline-marker.is-busy {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
   }
 }
