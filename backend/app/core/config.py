@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_name: str = "SMS Disaster Resource Coordinator API"
     app_env: str = "development"
     log_level: str = "info"
+    database_url: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
