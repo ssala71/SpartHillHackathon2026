@@ -12,7 +12,7 @@ loudly rather than silently overselling.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Protocol
 
 from .store import ResourceStore
