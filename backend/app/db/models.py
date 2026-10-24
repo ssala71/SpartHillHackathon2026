@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, ForeignKey, JSON, Numeric, String, Text, UniqueConstraint, event, inspect
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, ForeignKey, Index, JSON, Numeric, String, Text, UniqueConstraint, event, inspect, text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
@@ -10,6 +10,7 @@ from app.api.schemas.assignments import AssignmentStatus
 from app.api.schemas.common import now_pacific
 from app.api.schemas.incidents import IncidentStatus
 from app.api.schemas.inventory import InventoryCategory, InventoryStatus
+from app.api.schemas.ai import ProcessingStatus
 from app.api.schemas.requests import RequestChannel, RequestStatus, RequestUrgency
 from app.api.schemas.resources import ResourceStatus
 from app.db.base import Base
@@ -91,6 +92,46 @@ class Request(TimestampMixin, Base):
 def prevent_original_message_update(_mapper, _connection, target: Request) -> None:
     if inspect(target).attrs.message.history.has_changes():
         raise ValueError("The original request message cannot be overwritten")
+
+
+class ProcessingAttempt(TimestampMixin, Base):
+    __tablename__ = "processing_attempts"
+    __table_args__ = (
+        Index(
+            "uq_processing_attempt_active_request",
+            "request_id",
+            unique=True,
+            postgresql_where=text("is_active = true"),
+            sqlite_where=text("is_active = 1"),
+        ),
+    )
+
+    request_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("requests.id"), nullable=False, index=True)
+    attempt_number: Mapped[int] = mapped_column(nullable=False)
+    status: Mapped[ProcessingStatus] = mapped_column(enum_type(ProcessingStatus, "processing_status"), nullable=False)
+    model_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    raw_response: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_pacific, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class StoredAIResult(TimestampMixin, Base):
+    __tablename__ = "ai_results"
+    __table_args__ = (UniqueConstraint("attempt_id", name="uq_ai_result_attempt"),)
+
+    request_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("requests.id"), nullable=False, index=True)
+    attempt_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("processing_attempts.id"), nullable=False)
+    model_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    needs: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    urgency: Mapped[RequestUrgency] = mapped_column(enum_type(RequestUrgency, "ai_result_urgency"), nullable=False)
+    location: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    people_count: Mapped[int | None] = mapped_column(nullable=True)
+    household_size: Mapped[int | None] = mapped_column(nullable=True)
+    missing_information: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    needs_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
 
 
 class Assignment(TimestampMixin, Base):

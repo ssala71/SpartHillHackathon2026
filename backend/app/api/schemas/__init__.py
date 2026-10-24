@@ -1,6 +1,7 @@
 """Pydantic request and response contracts for the API."""
 
 from app.api.schemas.assignments import Assignment, AssignmentCreate, AssignmentStatus
+from app.api.schemas.ai import AIProcessingResult, MatchResult, ProcessingAttempt, ProcessingJob, ProcessingStatus, StoredAIResult
 from app.api.schemas.common import ApiError, ApiResponse, RecordTimestamps
 from app.api.schemas.incidents import Incident, IncidentCreate, IncidentStatus
 from app.api.schemas.inventory import (
@@ -23,6 +24,7 @@ from app.api.schemas.resources import Resource, ResourceCreate, ResourceStatus
 __all__ = [
     "ApiError",
     "ApiResponse",
+    "AIProcessingResult",
     "Assignment",
     "AssignmentCreate",
     "AssignmentStatus",
@@ -33,6 +35,7 @@ __all__ = [
     "InventoryItemCreate",
     "InventoryCategory",
     "InventoryStatus",
+    "MatchResult",
     "RecordTimestamps",
     "Request",
     "RequestChannel",
@@ -41,7 +44,11 @@ __all__ = [
     "RequestStatus",
     "RequestStatusUpdate",
     "RequestUrgency",
+    "ProcessingAttempt",
+    "ProcessingJob",
+    "ProcessingStatus",
     "Resource",
     "ResourceCreate",
     "ResourceStatus",
+    "StoredAIResult",
 ]

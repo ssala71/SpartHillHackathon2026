@@ -15,6 +15,8 @@ def test_all_storage_tables_are_registered() -> None:
         "assignments",
         "weekly_food_limits",
         "food_allocations",
+        "processing_attempts",
+        "ai_results",
     }
 
     assert expected.issubset(Base.metadata.tables)

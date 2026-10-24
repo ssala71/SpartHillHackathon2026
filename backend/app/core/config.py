@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     app_env: str = "development"
     log_level: str = "info"
     database_url: str | None = None
+    aws_region: str = "us-east-1"
+    bedrock_enabled: bool = False
+    bedrock_model_id: str = "amazon.nova-lite-v1:0"
 
     model_config = SettingsConfigDict(
         env_file=".env",
