@@ -1,111 +1,231 @@
+/* Tailwind without its preflight reset, so Cloudscape's own styles in the admin stay untouched.
+   Unlayered on purpose: Cloudscape's global styles are unlayered too, and layered utilities would lose to them. */
+@import 'tailwindcss/theme.css';
+@import 'tailwindcss/utilities.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Theme tokens. Components use these through the Tailwind colors below,
+   so light and dark mode switch in one place. */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --bg: #ffffff;
+  --panel: #f5f6f8;
+  --raised: #ffffff;
+  --line: #e4e7ec;
+  --text: #0b1b33;
+  --muted: #667085;
+  --accent: #1f3b73;
+  --accent-hover: #162d5a;
+  --accent-fg: #ffffff;
+  --accent-soft: #eaf0fa;
+  --bubble-in: #eef0f3;
+  --warn: #9a5b00;
+  --warn-soft: #fff4e0;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --ok: #157f3c;
+  --ok-soft: #e7f6ec;
+  color-scheme: light;
+}
+.dark {
+  --bg: #0b1220;
+  --panel: #111a2c;
+  --raised: #16213a;
+  --line: #24304a;
+  --text: #e8edf6;
+  --muted: #95a1b8;
+  --accent: #8fb3ff;
+  --accent-hover: #b3ccff;
+  --accent-fg: #0b1730;
+  --accent-soft: #1a2a4a;
+  --bubble-in: #1f2a40;
+  --warn: #f5b84a;
+  --warn-soft: #3a2b10;
+  --danger: #ff8a7a;
+  --danger-soft: #3d1a17;
+  --ok: #5fd08a;
+  --ok-soft: #12301f;
+  color-scheme: dark;
+}
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+@theme inline {
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-bubble-in: var(--bubble-in);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --ease-apple: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-in: rise 360ms var(--ease-apple) both;
+  --animate-sheet: sheet 320ms var(--ease-apple) both;
+  --animate-fade: fade 200ms ease-out both;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+  @keyframes sheet {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+html,
+body {
   background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  color: var(--text);
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
 body {
   margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* A light reset for the Tailwind views only (top bar and public demo).
+   Element-level specificity: it beats the browser and normalize defaults, and any utility class beats it. */
+:where(.wp) *,
+:where(.wp) ::before,
+:where(.wp) ::after {
   box-sizing: border-box;
 }
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+:where(.wp) h1,
+:where(.wp) h2,
+:where(.wp) h3,
+:where(.wp) p,
+:where(.wp) dl,
+:where(.wp) dd,
+:where(.wp) ol,
+:where(.wp) ul {
+  margin: 0;
+  padding: 0;
 }
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+:where(.wp) button,
+:where(.wp) input {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+  border: 0;
+  background: none;
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+:where(.wp) button {
+  cursor: pointer;
 }
-p {
+:where(.wp) button:disabled {
+  cursor: default;
+}
+:where(.wp) a {
+  color: inherit;
+  text-decoration: none;
+}
+/* Shared pieces used by both the demo and the admin. */
+.sms-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sms-bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 18px;
+  font-size: 15px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  animation: var(--animate-in);
+}
+.sms-in {
+  align-self: flex-start;
+  background: var(--bubble-in);
+  color: var(--text);
+  border-bottom-left-radius: 6px;
+}
+.sms-out {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-bottom-right-radius: 6px;
+}
+.sms-time {
+  font-size: 11px;
+  opacity: 0.65;
+  margin-top: 2px;
+}
+.sms-empty {
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+/* Processing timeline in the request detail */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.timeline li {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+}
+.timeline time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 12px;
+  padding-top: 2px;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* How it works diagram */
+.pipeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+.pipeline-step {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 0;
+}
+.pipeline-step .svc {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

@@ -1,16 +1,85 @@
-# React + Vite
+# Waypoint coordinator dashboard (frontend)
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 + Vite. The admin console uses [Cloudscape](https://cloudscape.design), AWS's open-source design system,
+themed white and dark blue in `src/theme.js`. The public demo and the shared top bar use Tailwind CSS v4 with the
+same color tokens (`src/index.css`). Tailwind's preflight reset is left out so it never changes Cloudscape's styles.
+Light and dark mode follow the system and can be toggled from the top bar; the Demo/Admin switch sits beside it.
 
-Currently, two official plugins are available:
+## Run it
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+cd frontend
+pnpm install
+pnpm dev          # open the URL it prints, e.g. http://localhost:5173
+```
 
-## React Compiler
+With no configuration the dashboard runs on **simulated demo data** held in memory
+(`src/api/mockData.js`). Refreshing the page resets it.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+To use the FastAPI backend instead, create `frontend/.env.local`:
 
-## Expanding the Oxlint configuration
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+and restart `pnpm dev`. The backend also needs CORS enabled for the Vite origin.
+
+Other commands: `pnpm build`, `pnpm lint`, `pnpm preview`.
+
+## Pages
+
+**Public demo** (`#/`): a phone on screen. Text as a resident (or as Maria, or in Spanish) or tap a sample message, and watch it move
+through Received, Saved, Bedrock, Matched, Replied. A side card shows what Waypoint understood and the result.
+"Simulate a Bedrock failure" shows the saved message being retried.
+
+**Admin** (`#/admin`), the coordinator console:
+
+| Page | What it does |
+| --- | --- |
+| Overview | Counts that need attention and active incidents |
+| Requests | Queue sorted by urgency. Open one for the SMS thread, Bedrock fields, suggested match, timeline, and actions (approve, retry, assign, cancel) |
+| Incidents and alerts | Create an incident, write and send the SMS alert, resolve it |
+| Resources and inventory | Resource status and verification time; click a quantity to edit stock |
+| Assignments | Pending → Accepted → In progress → Delivered |
+| How it works | The AWS pipeline and decision rules |
+
+## Code layout
+
+```
+src/
+  api/client.js       all data access; mock vs real backend switch
+  api/mockData.js     simulated incidents, requests, resources, inventory, assignments
+  api/matching.js     mock-only matching so inventory edits change matches
+  api/mockBedrock.js  mock-only keyword extractor + SMS reply rules (stand-in for Bedrock)
+  hooks/DataContext.jsx  loads everything; run(action, message, undo) for changes, toasts and Undo
+  components/         TopBar (shared header), PipelineTracker, SMS thread, status badges, formatting helpers
+  pages/              DemoPage.jsx (public) and the admin pages; RequestDetail.jsx is the side panel
+  theme.js            Cloudscape theme and light/dark mode
+  index.css           Tailwind setup, color tokens for both modes, shared SMS and timeline styles
+```
+
+## API the frontend expects
+
+Field names match `backend/app/api/schemas`. Responses can be the `ApiResponse` shape
+(`{ data, error }`) or the bare data.
+
+| Call | Endpoint |
+| --- | --- |
+| list / create / update incidents | `GET /incidents`, `POST /incidents`, `PATCH /incidents/{id}` |
+| send alert | `POST /incidents/{id}/alert` |
+| list / update requests | `GET /requests`, `PATCH /requests/{id}` |
+| simulate an inbound SMS | `POST /sms/simulate` with `{ from, body }` |
+| run or retry Bedrock + matching | `POST /requests/{id}/process` |
+| approve match / resend follow-up | `POST /requests/{id}/approve`, `POST /requests/{id}/follow-up` |
+| resources, inventory | `GET /resources`, `GET /inventory`, `PATCH /inventory/{id}` |
+| assignments | `GET /assignments`, `POST /assignments`, `PATCH /assignments/{id}` |
+
+Fields the dashboard uses that are **not in the backend schemas yet**:
+
+- Request: `latitude`, `longitude`, `processing_error`, `language`, `messages` (`direction`, `body`, `at`),
+  `events` (`label`, `detail`, `at`, `error`), `extraction` (`model_id`, `language`, `urgency_indicators`,
+  `missing_fields`, `latency_ms`), and `suggested_match`
+  (`resource_id`, `resource_name`, `address`, `distance_km`, `reason`, `next_action`, `source`, `last_verified_at`)
+- Incident: `alert_text`
+- Resource: `services`, `source`, `last_verified_at`
+- Assignment: `coordinator_name` exists in the Pydantic schema, but the DB model has `coordinator_user_id`

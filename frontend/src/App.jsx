@@ -1,122 +1,101 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react'
+import AppLayout from '@cloudscape-design/components/app-layout'
+import Flashbar from '@cloudscape-design/components/flashbar'
+import SideNavigation from '@cloudscape-design/components/side-navigation'
+import { DataProvider, useData } from './hooks/DataContext.jsx'
+import TopBar from './components/TopBar.jsx'
+import OverviewPage from './pages/OverviewPage.jsx'
+import RequestsPage from './pages/RequestsPage.jsx'
+import ResourcesPage from './pages/ResourcesPage.jsx'
+import IncidentsPage from './pages/IncidentsPage.jsx'
+import AssignmentsPage from './pages/AssignmentsPage.jsx'
+import DemoPage from './pages/DemoPage.jsx'
+import HowItWorksPage from './pages/HowItWorksPage.jsx'
 
-function App() {
-  const [count, setCount] = useState(0)
+// Admin pages, keyed by their #/admin/<key> hash. Anything else shows the public demo.
+const PAGES = {
+  overview: { title: 'Overview', component: OverviewPage },
+  requests: { title: 'Requests', component: RequestsPage },
+  incidents: { title: 'Incidents and alerts', component: IncidentsPage },
+  resources: { title: 'Resources and inventory', component: ResourcesPage },
+  assignments: { title: 'Assignments', component: AssignmentsPage },
+  'how-it-works': { title: 'How it works', component: HowItWorksPage },
+}
+
+const currentPage = () => {
+  const match = window.location.hash.match(/^#\/admin(?:\/([\w-]+))?/)
+  if (!match) return 'demo'
+  return PAGES[match[1]] ? match[1] : 'overview'
+}
+
+function useHashPage() {
+  const [page, setPage] = useState(currentPage)
+  useEffect(() => {
+    const onHashChange = () => setPage(currentPage())
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+  useEffect(() => {
+    document.title = page === 'demo' ? 'Waypoint' : `${PAGES[page].title} · Waypoint Admin`
+    window.scrollTo(0, 0)
+  }, [page])
+  return page
+}
+
+function Console({ page }) {
+  const [splitPanel, setSplitPanel] = useState(null)
+  const { flashes, requests } = useData()
+
+  // Close any open detail panel when moving between pages.
+  const [panelPage, setPanelPage] = useState(page)
+  if (panelPage !== page) {
+    setPanelPage(page)
+    setSplitPanel(null)
+  }
+
+  const reviewCount = requests.filter((r) => r.status === 'NeedsReview' || r.processing_error).length
+  const Page = PAGES[page].component
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <AppLayout
+      headerSelector="#top-nav"
+      toolsHide
+      navigation={
+        <SideNavigation
+          activeHref={`#/admin/${page}`}
+          header={{ href: '#/admin/overview', text: 'Admin' }}
+          items={[
+            { type: 'link', text: 'Overview', href: '#/admin/overview' },
+            {
+              type: 'link',
+              text: 'Requests',
+              href: '#/admin/requests',
+              info: reviewCount ? <span>{reviewCount} to review</span> : undefined,
+            },
+            { type: 'link', text: 'Incidents and alerts', href: '#/admin/incidents' },
+            { type: 'link', text: 'Resources and inventory', href: '#/admin/resources' },
+            { type: 'link', text: 'Assignments', href: '#/admin/assignments' },
+            { type: 'divider' },
+            { type: 'link', text: 'How it works', href: '#/admin/how-it-works' },
+          ]}
+        />
+      }
+      notifications={<Flashbar items={flashes} />}
+      splitPanel={splitPanel?.content}
+      splitPanelOpen={Boolean(splitPanel)}
+      onSplitPanelToggle={({ detail }) => !detail.open && setSplitPanel(null)}
+      splitPanelPreferences={{ position: 'side' }}
+      content={<Page setSplitPanel={setSplitPanel} />}
+    />
   )
 }
 
-export default App
+export default function App() {
+  const page = useHashPage()
+  return (
+    <DataProvider>
+      <TopBar id="top-nav" view={page === 'demo' ? 'demo' : 'admin'} />
+      {page === 'demo' ? <DemoPage /> : <Console page={page} />}
+    </DataProvider>
+  )
+}
