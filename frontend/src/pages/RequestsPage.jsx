@@ -9,7 +9,7 @@ import SpaceBetween from '@cloudscape-design/components/space-between'
 import Table from '@cloudscape-design/components/table'
 import TextFilter from '@cloudscape-design/components/text-filter'
 import { useData } from '../hooks/DataContext.jsx'
-import { maskPhone, needLabel, timeAgo } from '../components/format.js'
+import { needLabel, timeAgo } from '../components/format.js'
 import { RequestStatus, UrgencyBadge } from '../components/StatusBadges.jsx'
 import RequestDetail from './RequestDetail.jsx'
 
@@ -109,7 +109,6 @@ export default function RequestsPage({ setSplitPanel }) {
           { id: 'location', header: 'Location', cell: (r) => r.location_description ?? <Box color="text-status-inactive">Missing</Box> },
           { id: 'status', header: 'Status', cell: (r) => <RequestStatus request={r} /> },
           { id: 'next', header: 'Next action', cell: (r) => r.suggested_match?.next_action ?? '-' },
-          { id: 'from', header: 'From', cell: (r) => maskPhone(r.source_phone) },
           { id: 'received', header: 'Received', cell: (r) => timeAgo(r.created_at), sortingField: 'created_at' },
         ]}
       />

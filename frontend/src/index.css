@@ -1,3 +1,31 @@
+:root {
+  --wp-bubble-in: #e9ebed;
+  --wp-bubble-in-text: #0f141a;
+  --wp-bubble-out: #1f3b73;
+  --wp-bubble-out-text: #ffffff;
+  --wp-muted: #5f6b7a;
+  --wp-line: #d5dbdb;
+  --wp-surface: #ffffff;
+  --wp-phone-frame: #0b1f3a;
+  --wp-accent: #1f3b73;
+  --wp-rail: #e3e9f3;
+  --wp-danger: #b42318;
+  /* Underdamped spring: quick rise, small overshoot, settle */
+  --wp-spring: linear(0, 0.21 6%, 0.66 14%, 1.02 24%, 1.12 30%, 1.08 37%, 0.99 48%, 0.98 56%, 1 70%, 1);
+}
+:root[data-mode='dark'] {
+  --wp-bubble-in: #2a2f36;
+  --wp-bubble-in-text: #e9ebed;
+  --wp-bubble-out: #8fb3ff;
+  --wp-bubble-out-text: #0b1730;
+  --wp-muted: #a4adb8;
+  --wp-line: #3a4048;
+  --wp-surface: #161d26;
+  --wp-phone-frame: #2a3a55;
+  --wp-accent: #8fb3ff;
+  --wp-rail: #233150;
+  --wp-danger: #ff8a7a;
+}
 body {
   margin: 0;
 }
@@ -19,20 +47,20 @@ body {
 }
 .sms-in {
   align-self: flex-start;
-  background: #e9ebed;
-  color: #0f141a;
+  background: var(--wp-bubble-in);
+  color: var(--wp-bubble-in-text);
   border-bottom-left-radius: 4px;
 }
 .sms-out {
   align-self: flex-end;
-  background: #006ce0;
-  color: #fff;
+  background: var(--wp-bubble-out);
+  color: var(--wp-bubble-out-text);
   border-bottom-right-radius: 4px;
 }
 .sms-system {
   align-self: center;
   font-size: 12px;
-  color: #656871;
+  color: var(--wp-muted);
 }
 .sms-time {
   font-size: 11px;
@@ -45,9 +73,10 @@ body {
   width: 340px;
   max-width: 100%;
   margin: 0 auto;
-  border: 10px solid #232b37;
+  border: 10px solid var(--wp-phone-frame);
   border-radius: 36px;
-  background: #fff;
+  background: var(--wp-surface);
+  color: var(--wp-bubble-in-text);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -56,9 +85,8 @@ body {
 .phone-header {
   padding: 14px 16px 10px;
   text-align: center;
-  border-bottom: 1px solid #e9ebed;
+  border-bottom: 1px solid var(--wp-line);
   font-size: 13px;
-  color: #0f141a;
 }
 .phone-header strong {
   display: block;
@@ -69,8 +97,17 @@ body {
   overflow-y: auto;
   padding: 12px;
 }
+.phone-compose {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.phone-compose-field {
+  flex: 1;
+  min-width: 0;
+}
 .phone-input {
-  border-top: 1px solid #e9ebed;
+  border-top: 1px solid var(--wp-line);
   padding: 8px;
 }
 
@@ -90,7 +127,7 @@ body {
 }
 .timeline time {
   font-variant-numeric: tabular-nums;
-  color: #656871;
+  color: var(--wp-muted);
   font-size: 12px;
   padding-top: 2px;
 }
@@ -102,14 +139,100 @@ body {
   gap: 12px;
 }
 .pipeline-step {
-  border: 1px solid #c6c6cd;
+  border: 1px solid var(--wp-line);
   border-radius: 12px;
   padding: 12px;
   min-width: 0;
 }
 .pipeline-step .svc {
   font-size: 12px;
-  color: #006ce0;
+  color: var(--wp-accent);
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+/* New messages spring in */
+.sms-bubble {
+  animation: wp-pop 520ms var(--wp-spring) both;
+  transform-origin: bottom left;
+}
+.sms-out {
+  transform-origin: bottom right;
+}
+@keyframes wp-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Live pipeline tracker */
+.pipeline-track {
+  padding: 6px 12px 0;
+}
+.pipeline-rail {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--wp-rail);
+  margin: 10px 10% 14px; /* rail runs between the first and last label centers */
+}
+.pipeline-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+  background: var(--wp-accent);
+}
+.pipeline-marker {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  transition: background 200ms;
+  border-radius: 50%;
+  background: var(--wp-accent);
+  box-shadow: 0 0 0 4px var(--wp-surface);
+}
+.pipeline-marker.is-busy {
+  animation: wp-pulse 1s ease-in-out infinite;
+}
+.is-failed .pipeline-marker,
+.is-failed .pipeline-fill {
+  background: var(--wp-danger);
+}
+@keyframes wp-pulse {
+  50% {
+    box-shadow: 0 0 0 4px var(--wp-surface), 0 0 0 10px color-mix(in srgb, var(--wp-accent) 25%, transparent);
+  }
+}
+.pipeline-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--wp-muted);
+}
+.pipeline-labels span {
+  flex: 1;
+  text-align: center;
+}
+.pipeline-labels .done,
+.pipeline-labels .current {
+  color: inherit;
+  font-weight: 700;
+}
+.pipeline-labels .failed {
+  color: var(--wp-danger);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sms-bubble,
+  .pipeline-marker.is-busy {
+    animation: none;
+  }
 }

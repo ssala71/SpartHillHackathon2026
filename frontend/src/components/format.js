@@ -21,4 +21,5 @@ export const NEED_LABELS = {
 
 export const needLabel = (need) => NEED_LABELS[need] ?? need
 
-export const splitWords = (value) => value?.replace(/([a-z])([A-Z])/g, '$1 $2') ?? ''
+// 'NeedsReview' -> 'Needs review'
+export const splitWords = (value) => value?.replace(/([a-z])([A-Z])/g, (_, a, b) => `${a} ${b.toLowerCase()}`) ?? ''

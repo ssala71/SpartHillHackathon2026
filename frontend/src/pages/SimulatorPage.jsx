@@ -15,6 +15,7 @@ import SmsThread from '../components/SmsThread.jsx'
 import { ExtractionPanel, ProcessingTimeline } from '../components/RequestInsights.jsx'
 import { RequestStatus } from '../components/StatusBadges.jsx'
 import { maskPhone } from '../components/format.js'
+import PipelineTracker from '../components/PipelineTracker.jsx'
 
 // Demo senders. All numbers are 555 test numbers.
 const SENDERS = [
@@ -39,6 +40,7 @@ export default function SimulatorPage() {
   const [sending, setSending] = useState(false)
   const [systemNotes, setSystemNotes] = useState([])
   const [activeId, setActiveId] = useState(null)
+  const [liveStep, setLiveStep] = useState(null) // step index while a message is in flight
 
   const mine = requests.filter((r) => r.source_phone === sender.value)
   const messages = [...mine.flatMap((r) => r.messages ?? []), ...systemNotes.filter((n) => n.phone === sender.value)].sort((a, b) =>
@@ -46,6 +48,8 @@ export default function SimulatorPage() {
   )
   const active = requests.find((r) => r.id === activeId) ?? mine[0]
   const threadEnd = useRef(null)
+  const settledStep = !active ? 0 : active.processing_error ? 2 : active.status === 'Received' ? 1 : 4
+  const step = liveStep ?? settledStep
 
   useEffect(() => {
     if (threadEnd.current) threadEnd.current.scrollTop = threadEnd.current.scrollHeight
@@ -56,16 +60,23 @@ export default function SimulatorPage() {
     setSending(true)
     const body = text.trim()
     setText('')
+    setLiveStep(0)
     const received = await run((api) => api.receiveSms(sender.value, body))
     if (received?.reply) {
       // Opt-out handled without creating a request.
       const at = new Date().toISOString()
-      setSystemNotes((n) => [...n, { phone: sender.value, direction: 'in', body, at }, { phone: sender.value, direction: 'out', body: received.reply, at }])
+      setSystemNotes((n) => [
+        ...n,
+        { phone: sender.value, direction: 'in', body, at },
+        { phone: sender.value, direction: 'out', body: received.reply, at },
+      ])
     } else if (received) {
       setActiveId(received.id)
+      setLiveStep(2)
       await run((api) => api.processRequest(received.id, { simulateFailure: failNext }))
       setFailNext(false)
     }
+    setLiveStep(null)
     setSending(false)
   }
 
@@ -74,83 +85,85 @@ export default function SimulatorPage() {
       header={
         <Header
           variant="h1"
-          description="Text the service the way a resident would. The message is saved, read by Bedrock, matched against verified resources, and answered, and it appears in the coordinator queue."
+          description="Send a text as a resident. Watch it get saved, read by Amazon Bedrock, matched to a verified resource, and answered. It also lands in the coordinator queue."
+          actions={<Button href="#/requests">Open coordinator queue</Button>}
         >
-          SMS simulator
+          Live demo
         </Header>
       }
     >
-      <ColumnLayout columns={2}>
-        <SpaceBetween size="m">
-          <div className="phone">
-            <div className="phone-header">
-              <strong>Waypoint</strong>
-              Texting as {maskPhone(sender.value)}
-            </div>
-            <div className="phone-body" ref={threadEnd}>
-              <SmsThread messages={messages} emptyText="Send a text to start." />
-            </div>
-            <div className="phone-input">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  send()
-                }}
-              >
-                <SpaceBetween direction="horizontal" size="xs" alignItems="center">
-                  <div style={{ width: 230 }}>
-                    <Input value={text} onChange={({ detail }) => setText(detail.value)} placeholder="Text message" ariaLabel="Text message" />
+      <SpaceBetween size="l">
+        <Container>
+          <PipelineTracker step={step} failed={!liveStep && Boolean(active?.processing_error)} busy={liveStep !== null} />
+        </Container>
+        <ColumnLayout columns={2}>
+          <SpaceBetween size="m">
+            <div className="phone">
+              <div className="phone-header">
+                <strong>Waypoint</strong>
+                Texting as {maskPhone(sender.value)}
+              </div>
+              <div className="phone-body" ref={threadEnd}>
+                <SmsThread messages={messages} emptyText="Send a text to start." />
+              </div>
+              <div className="phone-input">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    send()
+                  }}
+                >
+                  <div className="phone-compose">
+                    <div className="phone-compose-field">
+                      <Input value={text} onChange={({ detail }) => setText(detail.value)} placeholder="Text message" ariaLabel="Text message" />
+                    </div>
+                    <Button variant="primary" loading={sending} disabled={!text.trim()} formAction="submit">
+                      Send
+                    </Button>
                   </div>
-                  <Button variant="primary" loading={sending} disabled={!text.trim()} formAction="submit">
-                    Send
-                  </Button>
-                </SpaceBetween>
-              </form>
+                </form>
+              </div>
             </div>
-          </div>
-        </SpaceBetween>
+          </SpaceBetween>
 
-        <SpaceBetween size="m">
-          <Container header={<Header variant="h3">Try it</Header>}>
-            <SpaceBetween size="s">
-              <Select selectedOption={sender} onChange={({ detail }) => setSender(detail.selectedOption)} options={SENDERS} ariaLabel="Sender" />
-              <SpaceBetween direction="horizontal" size="xs">
-                {PRESETS.map((p) => (
-                  <Button key={p.label} onClick={() => setText(p.text)}>
-                    {p.label}
-                  </Button>
-                ))}
+          <SpaceBetween size="m">
+            <Container header={<Header variant="h3">Message</Header>}>
+              <SpaceBetween size="s">
+                <Select selectedOption={sender} onChange={({ detail }) => setSender(detail.selectedOption)} options={SENDERS} ariaLabel="Sender" />
+                <SpaceBetween direction="horizontal" size="xs">
+                  {PRESETS.map((p) => (
+                    <Button key={p.label} onClick={() => setText(p.text)}>
+                      {p.label}
+                    </Button>
+                  ))}
+                </SpaceBetween>
+                <Checkbox checked={failNext} onChange={({ detail }) => setFailNext(detail.checked)}>
+                  Make Bedrock time out on the next message (to show recovery)
+                </Checkbox>
               </SpaceBetween>
-              <Checkbox checked={failNext} onChange={({ detail }) => setFailNext(detail.checked)}>
-                Make Bedrock time out on the next message (to show recovery)
-              </Checkbox>
-            </SpaceBetween>
-          </Container>
+            </Container>
 
-          {active ? (
-            <>
-              <Container
-                header={
-                  <Header variant="h3" actions={<Link href="#/requests">Open in queue</Link>}>
-                    What the system did
-                  </Header>
-                }
-              >
-                <RequestStatus request={active} />
+            {active ? (
+              <SpaceBetween size="m">
                 {active.processing_error && (
-                  <Box margin={{ top: 'xs' }} color="text-body-secondary">
-                    The message is saved. Retry it from the Requests page.
-                  </Box>
+                  <Container>
+                    <SpaceBetween size="xs">
+                      <RequestStatus request={active} />
+                      <Box color="text-body-secondary">
+                        The message was saved before processing, so nothing is lost. <Link href="#/requests">Retry it from the queue.</Link>
+                      </Box>
+                    </SpaceBetween>
+                  </Container>
                 )}
-              </Container>
-              <ExtractionPanel request={active} />
-              <ProcessingTimeline request={active} />
-            </>
-          ) : (
-            <Box color="text-body-secondary">Send a message to see each processing step here.</Box>
-          )}
-        </SpaceBetween>
-      </ColumnLayout>
+                <ExtractionPanel request={active} />
+                <ProcessingTimeline request={active} />
+              </SpaceBetween>
+            ) : (
+              <Box color="text-body-secondary">Send a message to see each processing step here.</Box>
+            )}
+          </SpaceBetween>
+        </ColumnLayout>
+      </SpaceBetween>
     </ContentLayout>
   )
 }

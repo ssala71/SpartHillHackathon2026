@@ -1,6 +1,7 @@
 # Waypoint coordinator dashboard (frontend)
 
-React 19 + Vite + [Cloudscape](https://cloudscape.design) (AWS's open-source design system).
+React 19 + Vite + [Cloudscape](https://cloudscape.design) (AWS's open-source design system), themed with
+white and dark blue and Public Sans in `src/theme.js`. Light and dark mode follow the system and can be toggled in the header.
 
 ## Run it
 
@@ -31,7 +32,7 @@ Other commands: `pnpm build`, `pnpm lint`, `pnpm preview`.
 | Requests | SMS requests sorted by urgency, filter by Needs review / Open / All. Click a row for the original SMS, extracted fields, suggested match with source and verification time, and actions: retry failed processing, approve and send location, send follow-up, assign delivery, cancel |
 | Incidents and alerts | Create or edit an incident, write the SMS alert (with a 160-character counter), send it, resolve it |
 | Resources and inventory | Resource status, services, source, last verified (stale after 4 h). Click an inventory quantity to edit it; matches update on the next load |
-| SMS simulator | A phone on screen. Text as a resident (presets for medical, Spanish, unclear, STOP) and watch the message get saved, read by Bedrock, matched, and answered. Can force a Bedrock timeout to show recovery |
+| Live demo (home, `#/demo`) | A phone on screen. Text as a resident (presets for medical, Spanish, unclear, STOP) and watch the message get saved, read by Bedrock, matched, and answered. A spring-animated tracker shows which step it is on. Can force a Bedrock timeout to show recovery |
 | How it works | Pipeline with the AWS service at each step, the decision rules, what Bedrock does and doesn't do, safety limits |
 | Assignments | Pending → Accepted → In progress → Delivered, or Declined/Cancelled (which returns the request to review) |
 

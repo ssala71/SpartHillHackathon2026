@@ -55,7 +55,7 @@ export default function OverviewPage() {
                 Sees every request as it arrives, with urgent and medical ones first. Checks what Bedrock understood, approves matches, assigns
                 deliveries, and keeps resource and stock information current.
               </Box>
-              <Link href="#/simulator">Try it as Maria in the SMS simulator</Link>
+              <Link href="#/demo">Try it as Maria in the live demo</Link>
             </SpaceBetween>
           </ColumnLayout>
         </Container>

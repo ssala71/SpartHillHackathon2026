@@ -30,6 +30,8 @@ export function DataProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    // Initial load from the API; state updates happen after the awaited calls.
+    // oxlint-disable-next-line react/set-state-in-effect
     refresh()
   }, [refresh])
 
