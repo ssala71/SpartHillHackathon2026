@@ -100,8 +100,13 @@ function Understood({ request, onRetry, retrying }) {
             <>
               <span className="font-semibold">{match.resource_name}</span>, {match.distance_km} km away
             </>
+          ) : match?.next_action === 'Ask follow-up question' ? (
+            <span className="font-semibold">Asked a follow-up</span>
           ) : (
-            <span className="font-semibold">{match?.next_action === 'Ask follow-up question' ? 'Asked a follow-up' : 'Sent to a coordinator'}</span>
+            <>
+              <span className="font-semibold">Flagged for a coordinator</span>
+              {match?.resource_id && <span className="block text-sm text-muted">Also sent the nearest location: {match.resource_name}</span>}
+            </>
           )}
         </p>
       </div>

@@ -83,10 +83,14 @@ export function composeReply(request, match, language = 'en') {
       ? '¿Qué necesita y cuál es la intersección más cercana? Ej: "agua, Tully y McLaughlin"'
       : 'What do you need, and what is your nearest cross street? Example: "water, Tully and McLaughlin"'
   }
+  // Urgent and medical requests still get the nearest verified location, but a
+  // coordinator always follows up and the reply leads with 911.
   if (request.urgency !== 'Normal') {
-    return es
-      ? 'Recibimos su mensaje. Un coordinador lo está revisando ahora. Si es una emergencia que pone en riesgo la vida, llame al 911.'
-      : 'We got your message. A coordinator is reviewing it now. If this is life-threatening, call 911.'
+    const place = match.resource_id ? `${match.resource_name}, ${match.address} (~${match.distance_km} km)` : null
+    if (es) {
+      return `Si es una emergencia que pone en riesgo la vida, llame al 911. Un coordinador lo contactará pronto.${place ? ` Lugar verificado más cercano: ${place}.` : ''}`
+    }
+    return `If this is life-threatening, call 911. A coordinator will contact you shortly.${place ? ` Nearest verified location: ${place}.` : ''}`
   }
   if (!match.resource_id) {
     return es

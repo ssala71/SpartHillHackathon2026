@@ -18,7 +18,7 @@ const PIPELINE = [
 
 const DECISIONS = [
   { situation: 'Normal request with a verified match', response: 'Text the nearest location, what it has, and when it was verified.' },
-  { situation: 'Medical or urgent words detected', response: 'Tell the person a coordinator is reviewing, and remind them to call 911 if life-threatening. A coordinator decides.' },
+  { situation: 'Medical or urgent words detected', response: 'Lead with 911, send the nearest verified location, and flag it so a coordinator follows up.' },
   { situation: 'Need or location missing', response: 'Ask one short follow-up question. Their answer joins the same request.' },
   { situation: 'No suitable resource or stale data', response: 'Say so plainly and flag for review. Do not invent a match.' },
   { situation: 'Bedrock fails or times out', response: 'The saved message is marked failed and stays in the queue for retry.' },
