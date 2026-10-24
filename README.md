@@ -1,4 +1,4 @@
-# SMS Disaster Resource Coordinator
+# Waypoint - SMS Disaster Resource Coordinator
 
 **SpartHill Hackathon 2026 | AWS Challenge**
 
