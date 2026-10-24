@@ -102,7 +102,15 @@ def normalize_needs(raw_needs: list[str]) -> list[str]:
 
 
 def is_medicine_request(needs: list[str], medical_concern: bool) -> bool:
-    return medical_concern or "medical" in normalize_needs(needs)
+    """True when the request must go to coordinator review for medical reasons
+    (a medicine need, or any medical concern such as a medical device)."""
+    return medical_concern or needs_medicine(needs)
+
+
+def needs_medicine(needs: list[str]) -> bool:
+    """True only when medicine itself is requested. Only these requests are
+    asked whether they need delivery or can collect."""
+    return "medical" in normalize_needs(needs)
 
 
 def to_extraction(
@@ -149,7 +157,8 @@ def missing_fields(
 
     ``location`` counts as missing when there are no coordinates, because a
     text address that cannot be geocoded cannot be used to find the nearest
-    place. ``delivery_mode`` is required only for medicine requests.
+    place. ``delivery_mode`` is required only when medicine is requested
+    (not for other medical concerns such as charging a medical device).
     """
     missing: set[str] = set()
     for item in reported_missing:
@@ -168,7 +177,7 @@ def missing_fields(
         missing.add("people_count")
     else:
         missing.discard("people_count")
-    if is_medicine_request(needs, medical_concern) and delivery_mode is None:
+    if needs_medicine(needs) and delivery_mode is None:
         missing.add("delivery_mode")
     else:
         missing.discard("delivery_mode")

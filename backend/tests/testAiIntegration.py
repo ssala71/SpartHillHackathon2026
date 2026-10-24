@@ -44,6 +44,38 @@ def test_model_json_inside_code_fence_is_parsed() -> None:
     assert result.urgency.value == "high"
 
 
+def test_bedrock_call_handles_reasoning_blocks_and_no_temperature(monkeypatch) -> None:
+    """Sonnet 5.5 rejects `temperature` and returns a reasoning block first."""
+    import sys
+    from types import SimpleNamespace
+
+    from botocore.exceptions import ClientError
+
+    from app.services import ai_processing
+
+    calls = []
+
+    class FakeClient:
+        def converse(self, **kwargs):
+            calls.append(kwargs["inferenceConfig"])
+            if "temperature" in kwargs["inferenceConfig"]:
+                raise ClientError({"Error": {"Code": "ValidationException", "Message": "`temperature` is deprecated for this model."}}, "Converse")
+            return {
+                "output": {"message": {"content": [
+                    {"reasoningContent": {"reasoningText": {"text": "thinking"}}},
+                    {"text": '{"needs": ["water"], "urgency": "low", "location": "Tully Rd", "people_count": 2, "summary": "s"}'},
+                ]}},
+                "stopReason": "end_turn",
+            }
+
+    monkeypatch.setitem(sys.modules, "boto3", SimpleNamespace(client=lambda *a, **k: FakeClient()))
+    _, result = ai_processing._bedrock_response(SimpleNamespace(message="water near Tully Rd, 2 of us"))
+
+    assert len(calls) == 2 and "temperature" not in calls[1]
+    assert result.needs == ["water"]
+    assert result.missing_information == []
+
+
 def test_mock_extracts_medicine_and_delivery_mode() -> None:
     result = _mock_extract("I need insulin near Tully Rd, just me, please deliver")
     assert "medical" in result.needs

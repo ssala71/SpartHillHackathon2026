@@ -103,9 +103,11 @@ def build_match_result(
 
     if review:
         suggestion = _nearest_suggestion(matcher, extraction, when)
-        if medical:
+        if adapter.needs_medicine(needs) and delivery_mode is not None:
             mode = "delivery" if delivery_mode is DeliveryMode.DELIVER else "to collect it"
             reason = f"Medicine request ({urgency.value} urgency); the person needs {mode}. A coordinator must review."
+        elif medical:
+            reason = f"Medical concern flagged ({urgency.value} urgency), for example a medical device. A coordinator must review."
         else:
             reason = "High-urgency request; a coordinator must review before any response is arranged."
         if suggestion is None:

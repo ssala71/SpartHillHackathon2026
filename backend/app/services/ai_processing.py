@@ -24,13 +24,17 @@ BEDROCK_PROMPT = (
     "address), or null.\n"
     "- people_count: integer or null.\n"
     "- household_size: integer or null.\n"
-    "- medical_concern: true if the message mentions medicine, a medical device, "
-    "or a health need; otherwise false.\n"
-    "- delivery_mode: \"deliver\" if they say they need it brought to them, "
-    "\"collect\" if they say they can travel to pick it up, otherwise null.\n"
-    "- missing_information: array naming what is not stated, from "
+    "- medical_concern: true only if the message mentions medicine or medication, "
+    "a medical device (oxygen, CPAP, dialysis), an injury, or a health emergency. "
+    "Food, water, shelter, charging a phone, and baby formula are NOT medical "
+    "concerns on their own.\n"
+    "- delivery_mode: \"deliver\" ONLY if the message explicitly asks for something "
+    "to be brought to them or says they cannot travel; \"collect\" ONLY if it "
+    "explicitly says they can come or pick it up. If the message does not say, "
+    "use null. Never infer it from the need or the person's situation.\n"
+    "- missing_information: array naming only fields you returned as null, from "
     "[\"needs\", \"location\", \"people_count\", \"delivery_mode\"]. Include "
-    "\"delivery_mode\" only for medicine requests.\n"
+    "\"delivery_mode\" only when medical_concern is true and delivery_mode is null.\n"
     "- needs_review: true if a coordinator should review it.\n"
     "- summary: one short sentence.\n\n"
     "Message:\n"
@@ -107,7 +111,7 @@ def _mock_extract(message: str) -> AIProcessingResult:
         missing.append("location")
     if people is None:
         missing.append("people_count")
-    if medical and delivery is None:
+    if "medical" in needs and delivery is None:
         missing.append("delivery_mode")
 
     return AIProcessingResult(
@@ -123,6 +127,27 @@ def _mock_extract(message: str) -> AIProcessingResult:
     )
 
 
+def _apply_rules(result: AIProcessingResult) -> None:
+    """Overwrite fields our rules decide, so model guesses can't change routing.
+
+    * needs_review: medical concern, a medicine need, or high urgency.
+    * missing_information: rebuilt from the fields that are actually empty.
+      Models often list fields they did fill in, or ones we never ask for.
+    """
+    medicine = "medical" in normalize_needs(result.needs)
+    result.needs_review = result.medical_concern or medicine or result.urgency.value == "high"
+    missing = []
+    if not result.needs:
+        missing.append("needs")
+    if not result.location:
+        missing.append("location")
+    if result.people_count is None:
+        missing.append("people_count")
+    if medicine and result.delivery_mode is None:
+        missing.append("delivery_mode")
+    result.missing_information = missing
+
+
 def _mock_response(request: Request) -> tuple[dict[str, Any], AIProcessingResult]:
     result = _mock_extract(request.message)
     return {"mode": "mock", "output": result.model_dump(mode="json")}, result
@@ -131,14 +156,28 @@ def _mock_response(request: Request) -> tuple[dict[str, Any], AIProcessingResult
 def _bedrock_response(request: Request) -> tuple[dict[str, Any], AIProcessingResult]:
     import boto3
 
+    from botocore.exceptions import ClientError
+
     client = boto3.client("bedrock-runtime", region_name=settings.aws_region)
-    response = client.converse(
-        modelId=settings.bedrock_model_id,
-        messages=[{"role": "user", "content": [{"text": BEDROCK_PROMPT + request.message}]}],
-        inferenceConfig={"temperature": 0, "maxTokens": 600},
-    )
-    output_text = response["output"]["message"]["content"][0]["text"]
+    call = {
+        "modelId": settings.bedrock_model_id,
+        "messages": [{"role": "user", "content": [{"text": BEDROCK_PROMPT + request.message}]}],
+    }
+    try:
+        response = client.converse(**call, inferenceConfig={"temperature": 0, "maxTokens": 2000})
+    except ClientError as error:
+        # Newer Claude models (e.g. Sonnet 5.5) reject `temperature`; retry without it.
+        if "temperature" not in str(error):
+            raise
+        response = client.converse(**call, inferenceConfig={"maxTokens": 2000})
+    # Some models return reasoning blocks before the answer; use the text blocks only.
+    blocks = response["output"]["message"]["content"]
+    output_text = "".join(block["text"] for block in blocks if "text" in block)
+    if not output_text.strip():
+        kinds = [next(iter(block), "?") for block in blocks]
+        raise ValueError(f"Model returned no text (stopReason={response.get('stopReason')}, blocks={kinds})")
     result = _parse_model_json(output_text)
+    _apply_rules(result)
     safe_response = json.loads(json.dumps(response, default=str))
     return safe_response, result
 

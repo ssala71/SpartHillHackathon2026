@@ -136,6 +136,28 @@ def test_low_urgency_medicine_still_reviewed_with_collect(matcher):
     assert "collect" in match.reason
 
 
+def test_medical_concern_without_medicine_skips_delivery_question(matcher):
+    # Charging a medical device: review it, but don't ask "deliver the medicine?"
+    match = decide(ai_result(needs=["water", "power"], medical_concern=True, urgency="high"), matcher)
+    assert match.action.value == "coordinator_review"
+    assert "delivery_mode" not in match.missing_fields
+    assert "Medical concern" in match.reason
+
+
+def test_model_missing_information_is_rebuilt_from_empty_fields():
+    from app.api.schemas.ai import AIProcessingResult
+    from app.services.ai_processing import _apply_rules
+
+    result = AIProcessingResult(
+        needs=["baby_formula"], urgency="medium", location="Tully Rd", people_count=2,
+        medical_concern=False, missing_information=["needs", "household_size", "delivery_mode"],
+        needs_review=False, summary="s",
+    )
+    _apply_rules(result)
+    assert result.missing_information == []
+    assert result.needs_review is False
+
+
 def test_high_urgency_non_medical_goes_to_review(matcher):
     match = decide(ai_result(urgency="high"), matcher)
     assert match.action.value == "coordinator_review"

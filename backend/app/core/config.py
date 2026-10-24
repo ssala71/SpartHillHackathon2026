@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     database_url: str | None = None
     aws_region: str = "us-east-1"
     bedrock_enabled: bool = False
-    bedrock_model_id: str = "amazon.nova-lite-v1:0"
+    # Claude Sonnet 5.5 via the US cross-region inference profile (required for this model).
+    bedrock_model_id: str = "us.anthropic.claude-sonnet-5-5"
     # "gazetteer" (offline demo landmarks) or "aws_location" (Amazon Location Service)
     geocoding_provider: str = "gazetteer"
     # Bias geocoding toward downtown San Jose.
