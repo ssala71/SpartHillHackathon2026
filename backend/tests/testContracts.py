@@ -8,6 +8,7 @@ from app.api.schemas import (
     Incident,
     InventoryItem,
     Request,
+    RequestCreate,
     RequestUrgency,
 )
 
@@ -24,7 +25,7 @@ def test_records_have_pacific_timestamps() -> None:
 
 
 def test_contracts_validate_enum_values() -> None:
-    request = Request(
+    request = RequestCreate(
         source_phone="+14085551212",
         message="We need water",
         urgency="Medical",

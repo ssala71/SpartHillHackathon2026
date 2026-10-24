@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import CheckConstraint
 
 from app.db.base import Base
-from app.db.models import InventoryItem
+from app.db.models import InventoryItem, Request
 from app.db.session import create_database_engine
 
 
@@ -28,6 +28,12 @@ def test_inventory_quantity_is_nonnegative() -> None:
         and constraint.name == "ck_inventory_quantity_nonnegative"
         for constraint in constraints
     )
+
+
+def test_request_stores_person_key_and_original_message() -> None:
+    assert Request.__table__.c.person_id.nullable is False
+    assert Request.__table__.c.message.nullable is False
+    assert Request.__table__.c.status_updated_by_admin_id.nullable is True
 
 
 def test_database_connection_requires_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
