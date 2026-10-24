@@ -1,0 +1,127 @@
+{
+  "_README": "DEMO DATASET — every record below is SIMULATED. Each record carries \"simulated\": true and source: \"demo_seed\". These are NOT real relief sites. Do not use for actual dispatch.",
+  "resources": [
+    {
+      "resource_id": "res-0001",
+      "name": "Riverside Community Center (SIM)",
+      "verified": true,
+      "verified_by": "op-demo-01",
+      "last_verified_at": "2026-10-23T08:00:00Z",
+      "source": "demo_seed",
+      "simulated": true,
+      "status": "open",
+      "location": { "lat": 34.0750, "lon": -117.3700, "address": "100 Riverside Dr (SIM)" },
+      "operating_hours": [
+        { "day": "mon", "open": "08:00", "close": "20:00" },
+        { "day": "tue", "open": "08:00", "close": "20:00" },
+        { "day": "wed", "open": "08:00", "close": "20:00" },
+        { "day": "thu", "open": "08:00", "close": "20:00" },
+        { "day": "fri", "open": "08:00", "close": "20:00" },
+        { "day": "sat", "open": "09:00", "close": "18:00" },
+        { "day": "sun", "open": "09:00", "close": "18:00" }
+      ],
+      "inventory": {
+        "water":  { "available": 120, "unit": "liters", "updated_at": "2026-10-23T09:30:00Z" },
+        "food":   { "available": 60,  "unit": "meals",  "updated_at": "2026-10-23T09:30:00Z" }
+      },
+      "handles_medical": false,
+      "contact": { "phone": "+1-555-0100", "notes": "Demo contact only" }
+    },
+    {
+      "resource_id": "res-0002",
+      "name": "Northgate Shelter (SIM)",
+      "verified": true,
+      "verified_by": "op-demo-02",
+      "last_verified_at": "2026-10-23T07:45:00Z",
+      "source": "demo_seed",
+      "simulated": true,
+      "status": "open",
+      "location": { "lat": 34.1200, "lon": -117.3000, "address": "55 Northgate Ave (SIM)" },
+      "operating_hours": [
+        { "day": "mon", "open": "00:00", "close": "23:59" },
+        { "day": "tue", "open": "00:00", "close": "23:59" },
+        { "day": "wed", "open": "00:00", "close": "23:59" },
+        { "day": "thu", "open": "00:00", "close": "23:59" },
+        { "day": "fri", "open": "00:00", "close": "23:59" },
+        { "day": "sat", "open": "00:00", "close": "23:59" },
+        { "day": "sun", "open": "00:00", "close": "23:59" }
+      ],
+      "inventory": {
+        "shelter": { "available": 40, "unit": "beds",  "updated_at": "2026-10-23T06:00:00Z" },
+        "water":   { "available": 30, "unit": "liters","updated_at": "2026-10-23T06:00:00Z" }
+      },
+      "handles_medical": false,
+      "contact": { "phone": "+1-555-0101", "notes": "Demo contact only" }
+    },
+    {
+      "resource_id": "res-0003",
+      "name": "Eastside Pantry (SIM, UNVERIFIED)",
+      "verified": false,
+      "verified_by": null,
+      "last_verified_at": null,
+      "source": "demo_seed",
+      "simulated": true,
+      "status": "open",
+      "location": { "lat": 34.0760, "lon": -117.3690, "address": "9 Eastside Rd (SIM)" },
+      "operating_hours": [
+        { "day": "mon", "open": "08:00", "close": "20:00" },
+        { "day": "tue", "open": "08:00", "close": "20:00" },
+        { "day": "wed", "open": "08:00", "close": "20:00" },
+        { "day": "thu", "open": "08:00", "close": "20:00" },
+        { "day": "fri", "open": "08:00", "close": "20:00" },
+        { "day": "sat", "open": "08:00", "close": "20:00" },
+        { "day": "sun", "open": "08:00", "close": "20:00" }
+      ],
+      "inventory": {
+        "water": { "available": 500, "unit": "liters", "updated_at": "2026-10-23T09:00:00Z" }
+      },
+      "handles_medical": false,
+      "contact": { "phone": null, "notes": "Unverified — must never be matched" }
+    },
+    {
+      "resource_id": "res-0004",
+      "name": "Southpark Depot (SIM, CLOSED)",
+      "verified": true,
+      "verified_by": "op-demo-03",
+      "last_verified_at": "2026-10-22T18:00:00Z",
+      "source": "demo_seed",
+      "simulated": true,
+      "status": "closed",
+      "location": { "lat": 34.0700, "lon": -117.3800, "address": "77 Southpark Blvd (SIM)" },
+      "operating_hours": [
+        { "day": "mon", "open": "08:00", "close": "17:00" }
+      ],
+      "inventory": {
+        "water": { "available": 200, "unit": "liters", "updated_at": "2026-10-22T17:00:00Z" }
+      },
+      "handles_medical": false,
+      "contact": { "phone": "+1-555-0103", "notes": "Closed — must never be matched" }
+    },
+    {
+      "resource_id": "res-0005",
+      "name": "Westend Clinic (SIM, OUT OF FORMULA)",
+      "verified": true,
+      "verified_by": "op-demo-04",
+      "last_verified_at": "2026-10-23T05:30:00Z",
+      "source": "demo_seed",
+      "simulated": true,
+      "status": "open",
+      "location": { "lat": 34.0900, "lon": -117.3500, "address": "12 Westend St (SIM)" },
+      "operating_hours": [
+        { "day": "mon", "open": "00:00", "close": "23:59" },
+        { "day": "tue", "open": "00:00", "close": "23:59" },
+        { "day": "wed", "open": "00:00", "close": "23:59" },
+        { "day": "thu", "open": "00:00", "close": "23:59" },
+        { "day": "fri", "open": "00:00", "close": "23:59" },
+        { "day": "sat", "open": "00:00", "close": "23:59" },
+        { "day": "sun", "open": "00:00", "close": "23:59" }
+      ],
+      "inventory": {
+        "medical":      { "available": 25, "unit": "kits",  "updated_at": "2026-10-23T05:30:00Z" },
+        "baby_formula": { "available": 0,  "unit": "tins",  "updated_at": "2026-10-23T05:30:00Z" }
+      },
+      "handles_medical": true,
+      "contact": { "phone": "+1-555-0104", "notes": "Has medical, zero baby_formula" }
+    }
+  ]
+}
