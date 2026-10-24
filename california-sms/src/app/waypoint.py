@@ -26,7 +26,9 @@ def system_prompt():
         for r in resources())
     return (
         'You are Waypoint, an SMS service that helps residents find verified disaster resources '
-        'in San José. Reply in plain text, in the same language as the message, under 300 characters.\n'
+        'in San José. Reply in plain text, under 300 characters, in English unless the sender clearly '
+        'writes in another language; then reply in the same language as the message. A name, a single '
+        'word, or a greeting like "hi" is not enough to switch languages.\n'
         'Verified open locations (recommend ONLY these, never invent others):\n'
         f'{sites}\n'
         'Rules:\n'

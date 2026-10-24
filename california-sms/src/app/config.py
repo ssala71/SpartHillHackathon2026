@@ -46,6 +46,9 @@ def settings() -> Settings:
     # user-supplied value in the error. Empty and whitespace-only values are absent.
     required = ('ALLOWED_RECIPIENTS', 'SMS_PHONE_NUMBER', 'SMS_ORIGINATION_ID',
                 'BEDROCK_MODEL_ID', 'TABLE_NAME', 'INBOUND_TOPIC_ARN')
+    # With DATABASE_URL the ledger lives in PostgreSQL, so no DynamoDB table is needed.
+    if os.getenv('DATABASE_URL', '').strip():
+        required = tuple(name for name in required if name != 'TABLE_NAME')
     missing = [name for name in required if not os.getenv(name, '').strip()]
     if missing:
         raise ValueError('Missing required AWS configuration: ' + ', '.join(missing))

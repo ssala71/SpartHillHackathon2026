@@ -12,6 +12,7 @@
 import hashlib
 import json
 import logging
+import os
 import re
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -19,6 +20,7 @@ from functools import lru_cache
 import boto3
 from botocore.config import Config
 
+from app import backend
 from app.config import settings
 from app.waypoint import system_prompt
 from app.store import DynamoStore, QuotaExceeded
@@ -113,14 +115,31 @@ class MessagingService:
         # follow-up question ("which cross street?") are understood.
         key = 'chat:' + sender_hash
         turns = self.store.history(key)
-        reply = self._reply(text, turns)
+        reply = self._reply(text, turns, self._backend_facts(sender, text, turns))
         self.store.save_history(key, (turns + [[text, reply]])[-HISTORY_TURNS:], HISTORY_TTL)
         return {'reply': reply}
 
-    def _reply(self, text, turns=()):
+    def _backend_facts(self, sender, text, turns):
+        # With WAYPOINT_BACKEND_URL set, the backend saves the conversation so far as
+        # one request and matches it. Without it, or on any error, return None and
+        # the reply falls back to resources.json.
+        if not backend.base_url():
+            return None
+        try:
+            return backend.facts(backend.match(sender, ' / '.join([t for t, _ in turns] + [text])))
+        except Exception:  # noqa: BLE001 - the text must still get a reply
+            log.warning('Waypoint backend unavailable; replying from resources.json')
+            return None
+
+    def _reply(self, text, turns=(), facts=None):
         # No tools. Earlier [text, reply] pairs, if any, come first so Converse sees an
         # alternating user/assistant conversation. The Waypoint instructions limit
-        # recommendations to the verified list in resources.json.
+        # recommendations to the verified list in resources.json; backend facts, when
+        # present, take priority over that list.
+        system = [{'text': system_prompt()}]
+        if facts:
+            system.append({'text': 'Resource matcher decision for this conversation. Follow it '
+                                   'over the list above and do not add other sites: ' + facts})
         messages = []
         for said, answered in turns:
             messages += [{'role': 'user', 'content': [{'text': said}]},
@@ -128,7 +147,7 @@ class MessagingService:
         messages.append({'role': 'user', 'content': [{'text': text}]})
         response = self.bedrock.converse(
             modelId=self.config.model,
-            system=[{'text': system_prompt()}],
+            system=system,
             messages=messages,
             inferenceConfig={'maxTokens': 150},
         )
@@ -203,7 +222,13 @@ def service():
     # profiles or execution-role credentials through its standard provider chain.
     # No credentials are embedded in settings or passed explicitly to these calls.
     config = settings()
-    table = boto3.resource('dynamodb', region_name=config.region).Table(config.table)
+    # DATABASE_URL selects PostgreSQL (shared with the Waypoint backend); otherwise
+    # the DynamoDB table from the SAM template is used.
+    if os.getenv('DATABASE_URL'):
+        from app.pgstore import PostgresStore
+        store = PostgresStore(os.environ['DATABASE_URL'])
+    else:
+        store = DynamoStore(boto3.resource('dynamodb', region_name=config.region).Table(config.table))
     # SendTextMessage has no client idempotency token: don't SDK-retry uncertain sends.
     sms = boto3.client('pinpoint-sms-voice-v2', region_name=config.region,
                       config=Config(retries={'total_max_attempts': 1},
@@ -213,4 +238,4 @@ def service():
                           # themselves send SMS. Keep their attempts/timeouts bounded.
                           config=Config(retries={'total_max_attempts': 2},
                                         connect_timeout=5, read_timeout=30))
-    return MessagingService(config, DynamoStore(table), sms, bedrock)
+    return MessagingService(config, store, sms, bedrock)

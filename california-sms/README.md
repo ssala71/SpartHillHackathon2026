@@ -59,7 +59,8 @@ Create `.env` from `.env.example` if it does not exist. If it already exists, ed
 | `SMS_PHONE_NUMBER` | Your actual AWS dedicated number in E.164 format. |
 | `SMS_ORIGINATION_ID` | Its full `arn:aws:sms-voice:...:phone-number/...` ARN. |
 | `BEDROCK_MODEL_ID` | `us.amazon.nova-lite-v1:0`, matching the IAM policy. |
-| `TABLE_NAME` | Stack output `LedgerTable`. |
+| `TABLE_NAME` | Stack output `LedgerTable`. Not needed when `DATABASE_URL` is set. |
+| `DATABASE_URL` | Optional. A PostgreSQL URL such as `postgresql://localhost/waypoint`. When set, the ledger uses PostgreSQL (table `sms_ledger`, created automatically) instead of DynamoDB. |
 | `INBOUND_TOPIC_ARN` | Stack output `InboundTopicArn`. |
 | `API_TOKEN_SECRET_ARN` | Stack output `ApiTokenSecretArn`; local identity needs GetSecretValue. |
 | `API_TOKEN` | Optional local alternative: a random token of at least 32 characters. Secret ARN takes precedence. |
@@ -102,12 +103,18 @@ The hackathon AWS account cannot create IAM roles, so the SAM deploy fails, and 
 
 text to the iPhone → Shortcuts automation → `POST /sms/reply` (through a tunnel to the laptop) → Bedrock → the iPhone texts the reply back.
 
-`POST /sms/reply` takes `{"sender": "...", "body": "..."}` and returns `{"reply": "..."}`. It needs the bearer token, sends nothing itself, skips the recipient allowlist, and allows 20 replies per sender per UTC day. It returns an empty reply for a bare opt-out keyword such as STOP. It remembers each sender's last 3 exchanges for 30 minutes (in the DynamoDB table, keyed by a hash of the number), so an answer to Waypoint's follow-up question such as "Story and King" is understood.
+`POST /sms/reply` takes `{"sender": "...", "body": "..."}` and returns `{"reply": "..."}`. It needs the bearer token, sends nothing itself, skips the recipient allowlist, and allows 20 replies per sender per UTC day. It returns an empty reply for a bare opt-out keyword such as STOP. It remembers each sender's last 3 exchanges for 30 minutes (in the ledger, keyed by a hash of the number), so an answer to Waypoint's follow-up question such as "Story and King" is understood.
 
 ### Prerequisites (macOS)
 
 - Python 3.12+ and the packages in `requirements-dev.txt`.
 - AWS CLI v2 and cloudflared: `brew install awscli cloudflared`.
+- PostgreSQL, shared by this service and the backend:
+  ```bash
+  brew install postgresql@16 && brew services start postgresql@16
+  createdb waypoint
+  ```
+  To use a hosted database (for example Amazon RDS) instead, `export DATABASE_URL=postgresql://user:password@host:5432/waypoint` in each tab before starting the scripts. Never commit that URL.
 - AWS credentials for the us-east-1 account. In Workshop Studio, open **Get AWS CLI credentials** and paste the macOS/Linux `export` lines into the terminal. Never commit them. They expire, so paste fresh ones if replies stop.
 - Bedrock access to Amazon Nova Lite. Check it with:
   ```bash
@@ -131,7 +138,7 @@ pip install -r requirements-dev.txt
 bash scripts/run-local.sh
 ```
 
-On first run, the script creates the `waypoint-sms-ledger` DynamoDB table and a random token in `~/.waypoint-token`, outside the repository. Leave it running.
+On first run, the script creates the `sms_ledger` table in the `waypoint` database and a random token in `~/.waypoint-token`, outside the repository. Leave it running.
 
 ### 2. Open a public tunnel
 
@@ -165,6 +172,26 @@ Copy the token with `cat ~/.waypoint-token | pbcopy` and get it onto the iPhone 
 
 Text `help, 3 of us near McLaughlin need water` to the iPhone from another phone. The Bedrock reply arrives in a few seconds.
 
+### Optional: connect to the Waypoint backend
+
+With the backend running, every text is saved as a request, Bedrock extracts the need, urgency and location, and the backend's matcher picks a verified, open, in-stock site. The reply writer then words that decision in the sender's language. Coordinators see the request in the backend (`GET /api/requests`, or `/docs` in a browser), and both services keep their data in the same PostgreSQL database. If the backend is down, replies fall back to `src/app/resources.json`.
+
+The matching code is on the `role2-unified-matching` branch. In a third terminal tab, from the repository root:
+
+```bash
+git fetch origin role2-unified-matching
+git worktree add ../backend-work origin/role2-unified-matching
+bash california-sms/scripts/run-backend.sh ../backend-work/backend
+```
+
+Paste the AWS `export` lines into that tab first: the backend calls Bedrock and Amazon Location Service. It uses the same `waypoint` database and creates its tables with the Alembic migrations. Then restart the SMS service with the link turned on:
+
+```bash
+WAYPOINT_BACKEND_URL=http://127.0.0.1:8001 bash scripts/run-local.sh
+```
+
+The matcher checks opening hours in Pacific time, so at night it may skip sites that are closed and pick an open one further away.
+
 ### On demo day
 
 - Paste fresh AWS credentials, then start `scripts/run-local.sh` and cloudflared again. If the tunnel link changed, update the URL in the Shortcut.
@@ -175,15 +202,15 @@ Text `help, 3 of us near McLaughlin need water` to the iPhone from another phone
 
 ### Cleanup
 
-Delete the Shortcut automation, then delete the table:
+Delete the Shortcut automation, then drop the database if you no longer need it:
 
 ```bash
-aws dynamodb delete-table --region us-east-1 --table-name waypoint-sms-ledger
+dropdb waypoint
 ```
 
 ## Processing behavior
 
-- DynamoDB tracks request hashes, IDs, and status for approximately seven days. Daily quota counters expire after approximately two days. There is no in-memory runtime fallback.
+- The ledger (DynamoDB, or PostgreSQL with `DATABASE_URL`) tracks request hashes, IDs, and status for approximately seven days. Daily quota counters expire after approximately two days. There is no in-memory runtime fallback.
 - The per-recipient quota applies to API sends and bot replies and resets by UTC date. Failed processing can consume quota. API Gateway also throttles requests.
 - Recipient authorization uses an explicit allowlist. +1 is shared by several countries; include only your intended US recipients. AWS-managed opt-outs remain enabled.
 - Bedrock generates single-turn replies capped at 300 characters. It has no application tools and cannot perform account actions. Unicode and long texts may use multiple billable SMS segments.
@@ -198,7 +225,7 @@ aws dynamodb delete-table --region us-east-1 --table-name waypoint-sms-ledger
 .venv\Scripts\python -m pytest -q
 ```
 
-Tests inject isolated AWS test doubles without sending texts or contacting AWS. They live under `tests/` and are outside the Lambda deployment package. `src/` contains only real AWS behavior. See `VALIDATION.md` for performed checks and remaining account-level verification.
+Tests inject isolated AWS test doubles without sending texts or contacting AWS. They live under `tests/` and are outside the Lambda deployment package. The PostgreSQL ledger tests run only when `TEST_DATABASE_URL` points at a disposable database, for example `TEST_DATABASE_URL=postgresql://localhost/waypoint_test`. `src/` contains only real AWS behavior. See `VALIDATION.md` for performed checks and remaining account-level verification.
 
 ## Implementation files
 
@@ -208,8 +235,10 @@ Tests inject isolated AWS test doubles without sending texts or contacting AWS. 
 - `src/app/waypoint.py` and `src/app/resources.json`: Waypoint reply instructions and the verified location list.
 - `src/app/inbound.py`: SNS Lambda entry point.
 - `src/app/store.py`: DynamoDB ledger and atomic quota enforcement.
+- `src/app/pgstore.py`: the same ledger in PostgreSQL, used when `DATABASE_URL` is set.
 - `template.yaml`: infrastructure and IAM permissions.
 - `scripts/run-local.sh`: runs the API on a laptop for the iPhone relay demo.
+- `src/app/backend.py` and `scripts/run-backend.sh`: optional link to the Waypoint backend's request storage and resource matcher.
 
 ## AWS references
 

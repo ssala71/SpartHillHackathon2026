@@ -267,5 +267,36 @@ def test_draft_reply_remembers_the_previous_exchange(config):
     assert len(bedrock.converse.call_args.kwargs['messages']) == 1
 
 
+def test_draft_reply_uses_backend_match_when_configured(config, monkeypatch):
+    # The backend's matcher decision reaches Bedrock as a system instruction, and
+    # the whole conversation so far is sent to the backend as one request.
+    from app import backend
+    seen = {}
+    monkeypatch.setenv('WAYPOINT_BACKEND_URL', 'http://backend.test')
+    monkeypatch.setattr(backend, 'match', lambda sender, message: seen.update(message=message) or {
+        'action': 'direct_to_location',
+        'resource': {'name': 'Tully Community Center (SIM)', 'address': '1580 Tully Rd, San Jose (SIM)',
+                     'distance_km': 1.24}})
+    bedrock = Mock()
+    bedrock.converse.return_value = {'output': {'message': {'content': [{'text': 'Go to Tully.'}]}}}
+    svc = MessagingService(config, MemoryStore(), Mock(), bedrock)
+    svc.draft_reply('+14085550123', 'we need water')
+    svc.draft_reply('+14085550123', 'near Tully')
+    assert seen['message'] == 'we need water / near Tully'
+    system = bedrock.converse.call_args.kwargs['system']
+    assert 'Tully Community Center, 1580 Tully Rd, San Jose (about 1.2 km away)' in system[1]['text']
+
+
+def test_draft_reply_falls_back_when_backend_fails(config, monkeypatch):
+    from app import backend
+    monkeypatch.setenv('WAYPOINT_BACKEND_URL', 'http://backend.test')
+    monkeypatch.setattr(backend, 'match', Mock(side_effect=OSError('connection refused')))
+    bedrock = Mock()
+    bedrock.converse.return_value = {'output': {'message': {'content': [{'text': 'Go to Tully.'}]}}}
+    svc = MessagingService(config, MemoryStore(), Mock(), bedrock)
+    assert svc.draft_reply('+14085550123', 'need water') == {'reply': 'Go to Tully.'}
+    assert len(bedrock.converse.call_args.kwargs['system']) == 1
+
+
 def test_reply_route_requires_token(client):
     assert client.post('/sms/reply', json={'sender': 'x', 'body': 'help'}).status_code == 401

@@ -17,3 +17,4 @@ boto3==1.43.118
 mangum==0.22.0
 # Loads optional local .env settings without overriding deployment variables.
 python-dotenv==1.2.4
+psycopg[binary]==3.2.10
