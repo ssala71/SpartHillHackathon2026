@@ -21,7 +21,7 @@ live in `group2/schema.py`.
 ## Ownership
 - **Group 1** (Backend/SMS): stores records, exposes APIs, passes each inbound
   SMS string + phone into Group 2's `handle_message`. Backs the conversation
-  store with DynamoDB.
+  store with PostgreSQL.
 - **Group 2** (Bedrock/Matching): classifies, gathers fields, produces
   `StructuredRequest` and `MatchResult`.
 - **Group 3** (Dashboard): reads these shapes to render the UI.

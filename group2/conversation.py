@@ -3,7 +3,7 @@ Conversation layer — ties the pieces together per phone number.
 
 Responsibilities:
   - Keep a partial StructuredRequest per phone (in-memory here; Group 1 will
-    back this with DynamoDB so it survives restarts).
+    back this with PostgreSQL so it survives restarts).
   - Merge each incoming SMS into the request (only fill fields that are still
     blank, so a later vague message can't wipe earlier good data).
   - If anything is still missing, build ONE follow-up message asking for all
@@ -44,7 +44,7 @@ class TurnResult:
 
 
 class ConversationStore:
-    """In-memory per-phone sessions. Swap for DynamoDB in Group 1's backend."""
+    """In-memory per-phone sessions. Swap for PostgreSQL in Group 1's backend."""
 
     def __init__(self):
         self._sessions: dict[str, StructuredRequest] = {}
