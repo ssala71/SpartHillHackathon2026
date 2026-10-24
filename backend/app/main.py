@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 
+from app.api.routes.incidents import router as incidents_router
+from app.api.routes.requests import router as requests_router
 from app.core.config import settings
 
 app = FastAPI(
@@ -7,6 +9,9 @@ app = FastAPI(
     version="0.1.0",
     description="Backend API for coordinating disaster resource requests.",
 )
+
+app.include_router(requests_router)
+app.include_router(incidents_router)
 
 
 @app.get("/health", tags=["system"])

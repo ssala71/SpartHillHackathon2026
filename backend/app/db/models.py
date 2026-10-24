@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Date, DateTime, Enum, ForeignKey, JSON, Numeric, String, Text, UniqueConstraint, event, inspect
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import Uuid
 
@@ -10,7 +10,7 @@ from app.api.schemas.assignments import AssignmentStatus
 from app.api.schemas.common import now_pacific
 from app.api.schemas.incidents import IncidentStatus
 from app.api.schemas.inventory import InventoryCategory, InventoryStatus
-from app.api.schemas.requests import RequestStatus, RequestUrgency
+from app.api.schemas.requests import RequestChannel, RequestStatus, RequestUrgency
 from app.api.schemas.resources import ResourceStatus
 from app.db.base import Base
 
@@ -74,13 +74,23 @@ class Request(TimestampMixin, Base):
     __tablename__ = "requests"
 
     incident_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("incidents.id"), nullable=True)
+    person_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     source_phone: Mapped[str] = mapped_column(String(30), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     location_description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    needs: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     people_count: Mapped[int | None] = mapped_column(nullable=True)
     household_size: Mapped[int | None] = mapped_column(nullable=True)
     urgency: Mapped[RequestUrgency] = mapped_column(enum_type(RequestUrgency, "request_urgency"), nullable=False, default=RequestUrgency.NORMAL)
+    channel: Mapped[RequestChannel] = mapped_column(enum_type(RequestChannel, "request_channel"), nullable=False, default=RequestChannel.FRONTEND)
     status: Mapped[RequestStatus] = mapped_column(enum_type(RequestStatus, "request_status"), nullable=False, default=RequestStatus.RECEIVED)
+    status_updated_by_admin_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+
+
+@event.listens_for(Request, "before_update")
+def prevent_original_message_update(_mapper, _connection, target: Request) -> None:
+    if inspect(target).attrs.message.history.has_changes():
+        raise ValueError("The original request message cannot be overwritten")
 
 
 class Assignment(TimestampMixin, Base):

@@ -9,7 +9,15 @@ from app.api.schemas.inventory import (
     InventoryItemCreate,
     InventoryStatus,
 )
-from app.api.schemas.requests import Request, RequestCreate, RequestStatus, RequestUrgency
+from app.api.schemas.requests import (
+    Request,
+    RequestChannel,
+    RequestCreate,
+    RequestList,
+    RequestStatus,
+    RequestStatusUpdate,
+    RequestUrgency,
+)
 from app.api.schemas.resources import Resource, ResourceCreate, ResourceStatus
 
 __all__ = [
@@ -27,8 +35,11 @@ __all__ = [
     "InventoryStatus",
     "RecordTimestamps",
     "Request",
+    "RequestChannel",
     "RequestCreate",
+    "RequestList",
     "RequestStatus",
+    "RequestStatusUpdate",
     "RequestUrgency",
     "Resource",
     "ResourceCreate",

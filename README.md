@@ -212,6 +212,30 @@ python -m pytest
 
 The health check is available at `http://127.0.0.1:8000/health`.
 
+### Request persistence API
+
+Request records are saved before any later processing. The original `message`
+is stored with the request and the persistence route does not provide a way to
+overwrite it. The same normalized phone number produces the same SHA-256
+`person_id` for frontend and future SMS submissions.
+
+Available endpoints:
+
+```text
+POST  /api/incidents
+GET   /api/incidents
+GET   /api/incidents/{incident_id}
+
+POST  /api/requests
+GET   /api/requests
+GET   /api/requests/{request_id}
+PATCH /api/requests/{request_id}/status
+```
+
+Completed requests remain in the default request list. Status updates require
+an `admin_user_id`; authentication and authorization for that ID will be added
+in a later configuration/security branch.
+
 ### Frontend setup
 
 The React/Vite frontend is maintained on the `frontendReactSetUp` branch. From the repository root after that branch is checked out or merged:
