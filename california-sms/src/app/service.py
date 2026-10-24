@@ -20,6 +20,7 @@ import boto3
 from botocore.config import Config
 
 from app.config import settings
+from app.waypoint import system_prompt
 from app.store import DynamoStore, QuotaExceeded
 
 log = logging.getLogger(__name__)
@@ -86,15 +87,32 @@ class MessagingService:
                           [phone, self.config.phone, text], phone,
                           lambda: self._reply(text))
 
+    def draft_reply(self, sender, text):
+        # Used by the iPhone Shortcut relay: the phone receives the text and sends the
+        # reply itself, so this only asks Bedrock and returns the reply. No SMS is sent
+        # through AWS, which is why the recipient allowlist does not apply here.
+        text = text.strip()
+        if not text or len(text) > 1600:
+            raise MessagingError('invalid_incoming_message')
+        # A bare opt-out word gets no reply. HELP is allowed through on purpose:
+        # people in a disaster text "help", and Bedrock answers with a follow-up.
+        if text.upper().strip('.! ') in KEYWORDS - {'HELP', 'INFO', 'START', 'UNSTOP', 'YES'}:
+            return {'reply': ''}
+        # Share the per-sender daily quota so one number cannot run up Bedrock costs.
+        day = datetime.now(timezone.utc).date().isoformat()
+        sender_hash = hashlib.sha256(sender.encode()).hexdigest()
+        try:
+            self.store.consume(day + ':reply:' + sender_hash, self.config.daily_limit)
+        except QuotaExceeded as error:
+            raise MessagingError('daily_limit_reached', 429) from error
+        return {'reply': self._reply(text)}
+
     def _reply(self, text):
-        # This is a single-turn text request: no history, retrieved account data,
-        # or tools are supplied. The model is instructed not to invent actions.
+        # This is a single-turn text request with no history or tools. The Waypoint
+        # instructions limit recommendations to the verified list in resources.json.
         response = self.bedrock.converse(
             modelId=self.config.model,
-            system=[{'text': 'You are a helpful SMS assistant. Reply in plain text, '
-                     'in one or two short sentences, under 300 characters. '
-                     'You cannot take actions or access user accounts. '
-                     'Never claim to have completed an action.'}],
+            system=[{'text': system_prompt()}],
             messages=[{'role': 'user', 'content': [{'text': text}]}],
             inferenceConfig={'maxTokens': 150},
         )

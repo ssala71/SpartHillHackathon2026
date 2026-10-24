@@ -20,7 +20,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from mangum import Mangum
 
 from app.config import settings
-from app.models import OutgoingSMS
+from app.models import OutgoingSMS, ReplyRequest
 from app.service import MessagingError, service
 
 
@@ -92,6 +92,12 @@ def create_app():
         # A synchronous route lets FastAPI use its worker thread for blocking Boto3
         # calls. HTTP 202 acknowledges submission, not delivery to the recipient.
         return service().send(body.to, body.body, str(body.request_id))
+
+    @app.post('/sms/reply', dependencies=[Depends(require_token)])
+    def reply(body: ReplyRequest):
+        # Returns Bedrock's Waypoint reply for a text a phone received. The caller
+        # (the iPhone Shortcut) sends the reply from that phone; nothing is sent here.
+        return service().draft_reply(body.sender, body.body)
 
     return app
 

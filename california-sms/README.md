@@ -2,7 +2,7 @@
 
 FastAPI application for sending SMS with AWS End User Messaging SMS and receiving messages through SNS → Lambda → Amazon Bedrock → SMS. The application uses real AWS clients and a DynamoDB ledger. Missing configuration stops startup. There is no simulation mode, fake reply, or public inbound webhook.
 
-The deployment region defaults to `us-west-2` (Oregon), with US recipients. The code has not yet been deployed or verified against your AWS account or a carrier. AWS account authentication, an approved dedicated SMS number, and Bedrock access are still required.
+The deployment region defaults to `us-east-1` (Oregon), with US recipients. The code has not yet been deployed or verified against your AWS account or a carrier. AWS account authentication, an approved dedicated SMS number, and Bedrock access are still required.
 
 ## Deploy
 
@@ -17,15 +17,15 @@ Prerequisites: Python 3.12, AWS CLI v2, AWS SAM CLI, and Docker for the containe
 
    Use your organization's configured profile name. If your account uses console-based CLI sign-in instead of IAM Identity Center, use `aws login --profile hackathon`.
 
-2. In AWS End User Messaging SMS in **us-west-2**, obtain an active US dedicated phone number supporting two-way SMS. Complete the applicable registration. Record its phone-number ARN and E.164 number. If your account remains in the SMS sandbox, verify each intended destination number. Sender registration and sandbox verification are separate requirements.
+2. In AWS End User Messaging SMS in **us-east-1**, obtain an active US dedicated phone number supporting two-way SMS. Complete the applicable registration. Record its phone-number ARN and E.164 number. If your account remains in the SMS sandbox, verify each intended destination number. Sender registration and sandbox verification are separate requirements.
 
-3. Confirm access to Bedrock inference profile `us.amazon.nova-lite-v1:0` from `us-west-2`. The template scopes model permissions to Nova Lite; changing models requires changing both `BEDROCK_MODEL_ID` and the corresponding IAM resources. This profile can process requests in other US regions.
+3. Confirm access to Bedrock inference profile `us.amazon.nova-lite-v1:0` from `us-east-1`. The template scopes model permissions to Nova Lite; changing models requires changing both `BEDROCK_MODEL_ID` and the corresponding IAM resources. This profile can process requests in other US regions.
 
 4. Build and deploy from this directory:
 
    ```powershell
    sam build --use-container
-   sam deploy --guided --profile hackathon --region us-west-2
+   sam deploy --guided --profile hackathon --region us-east-1
    ```
 
    Use stack name `california-sms`. Supply `OriginationArn`, `PhoneNumber`, `AllowedRecipients`, and `DailyLimit`. `AllowedRecipients` is a comma-separated list of actual consenting recipients. Review the CloudFormation changeset and IAM role creation.
@@ -54,7 +54,7 @@ Create `.env` from `.env.example` if it does not exist. If it already exists, ed
 | Variable | Value |
 | --- | --- |
 | `AWS_PROFILE` | Your authenticated local AWS profile. Omit in Lambda. |
-| `AWS_REGION` | `us-west-2`, matching the deployed number and resources. |
+| `AWS_REGION` | `us-east-1`, matching the deployed number and resources. |
 | `ALLOWED_RECIPIENTS` | Comma-separated consenting recipients in +1 E.164 format. |
 | `SMS_PHONE_NUMBER` | Your actual AWS dedicated number in E.164 format. |
 | `SMS_ORIGINATION_ID` | Its full `arn:aws:sms-voice:...:phone-number/...` ARN. |
@@ -80,6 +80,7 @@ Use `/docs` to inspect the API schema and authorize requests. Never put the serv
 | --- | --- |
 | `GET /health` | Process health and configured AWS region. |
 | `POST /sms/send` | Authenticated submission of a real outbound SMS. |
+| `POST /sms/reply` | Authenticated. Returns Bedrock's Waypoint reply for `{ "sender", "body" }` without sending anything. Used by the iPhone Shortcut relay, which sends the reply from the phone. |
 
 `POST /sms/send` requires `Authorization: Bearer <your token>` and a JSON object containing:
 
@@ -90,6 +91,10 @@ Use `/docs` to inspect the API schema and authorize requests. Never put the serv
 Successful responses are HTTP 202 with `status: submitted` and the AWS `message_id`. This confirms submission, not carrier delivery. Reuse the same request ID and body when retrying a timed-out HTTP call. Changing the body or recipient while reusing the ID returns 409.
 
 Incoming messages use the SNS Lambda handler and validate the SNS topic and destination number. No HTTP route accepts fabricated inbound events.
+
+## Waypoint replies
+
+Bedrock answers as Waypoint. It may only recommend the verified locations in `src/app/resources.json`, replies in the sender's language, asks for the need and cross street when either is missing, and tells medical or life-threatening messages to call 911 and that a coordinator will follow up. Edit `resources.json` to change the list, then redeploy. The instructions live in `src/app/waypoint.py`.
 
 ## Processing behavior
 
@@ -115,6 +120,7 @@ Tests inject isolated AWS test doubles without sending texts or contacting AWS. 
 - `src/app/main.py`: startup validation, FastAPI routes, and bearer authentication.
 - `src/app/models.py`: outgoing and incoming message schemas.
 - `src/app/service.py`: AWS sending, Bedrock responses, and idempotency.
+- `src/app/waypoint.py` and `src/app/resources.json`: Waypoint reply instructions and the verified location list.
 - `src/app/inbound.py`: SNS Lambda entry point.
 - `src/app/store.py`: DynamoDB ledger and atomic quota enforcement.
 - `template.yaml`: infrastructure and IAM permissions.

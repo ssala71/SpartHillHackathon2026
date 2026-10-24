@@ -33,3 +33,11 @@ class IncomingSMS(BaseModel):
     messageBody: str = Field(min_length=1, max_length=1600)
     # AWS's inbound identifier becomes the idempotency key for the generated reply.
     inboundMessageId: str = Field(min_length=1, max_length=128)
+
+
+class ReplyRequest(BaseModel):
+    # Sent by the iPhone Shortcut relay. The sender may be a phone number, an Apple
+    # ID email, or a contact name, so it is only length-checked and then hashed.
+    model_config = ConfigDict(extra='forbid')
+    sender: str = Field(min_length=1, max_length=128)
+    body: str = Field(min_length=1, max_length=1600)

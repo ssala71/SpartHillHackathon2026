@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Tully Community Center",
+    "address": "1580 Tully Rd, San José, CA",
+    "services": ["water", "charging", "shelter"],
+    "area": "Tully Rd, McLaughlin Ave, south San José"
+  },
+  {
+    "name": "Eastside Food Pantry",
+    "address": "2200 Story Rd, San José, CA",
+    "services": ["food", "water", "baby supplies"],
+    "area": "Story Rd, King Rd, east San José"
+  }
+]

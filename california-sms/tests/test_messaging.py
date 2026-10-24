@@ -215,3 +215,41 @@ def test_sns_handler_checks_topic_and_parses_inner_json(monkeypatch, config):
     # A valid payload from an unexpected topic must not reach business processing.
     with pytest.raises(ValueError, match='Unexpected SNS topic'):
         inbound.handler({'Records': [record]}, None)
+
+
+def test_reply_uses_waypoint_instructions(config):
+    # The model must be grounded in the verified list and the medical rule.
+    sms, bedrock = Mock(), Mock()
+    sms.send_text_message.return_value = {'MessageId': 'aws-message-123'}
+    bedrock.converse.return_value = {'output': {'message': {'content': [{'text': 'Go to Tully.'}]}}}
+    svc = MessagingService(config, MemoryStore(), sms, bedrock)
+    svc.receive(message())
+    prompt = bedrock.converse.call_args.kwargs['system'][0]['text']
+    assert 'Tully Community Center' in prompt
+    assert '911' in prompt
+    assert 'same language' in prompt
+
+
+def test_draft_reply_returns_text_without_sending(config):
+    # The Shortcut relay gets Bedrock's reply back; AWS SMS is never called, and
+    # senders outside the allowlist (judges' phones) are still answered.
+    sms, bedrock = Mock(), Mock()
+    bedrock.converse.return_value = {'output': {'message': {'content': [{'text': 'Go to Tully.'}]}}}
+    svc = MessagingService(config, MemoryStore(), sms, bedrock)
+    assert svc.draft_reply('+14085550123', 'need water near Tully') == {'reply': 'Go to Tully.'}
+    sms.send_text_message.assert_not_called()
+
+
+def test_draft_reply_skips_keywords_and_enforces_quota(config):
+    bedrock = Mock()
+    bedrock.converse.return_value = {'output': {'message': {'content': [{'text': 'ok'}]}}}
+    svc = MessagingService(replace(config, daily_limit=1), MemoryStore(), Mock(), bedrock)
+    assert svc.draft_reply('judge', 'STOP') == {'reply': ''}
+    bedrock.converse.assert_not_called()
+    svc.draft_reply('judge', 'help')  # "help" is a real request here, not a keyword
+    with pytest.raises(MessagingError, match='daily_limit_reached'):
+        svc.draft_reply('judge', 'need food')
+
+
+def test_reply_route_requires_token(client):
+    assert client.post('/sms/reply', json={'sender': 'x', 'body': 'help'}).status_code == 401

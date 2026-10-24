@@ -7,13 +7,13 @@
 # phone-number details are deployment parameters; this template does not purchase
 # numbers, register SMS campaigns, or enable two-way messaging on the number.
 # After deployment, point that number's two-way configuration at InboundTopicArn.
-# Use us-west-2 and review the generated IAM roles/changeset before deployment.
+# Use us-east-1 and review the generated IAM roles/changeset before deployment.
 # =============================================================================
 AWSTemplateFormatVersion: '2010-09-09'
 # SAM expands shorthand functions, event bindings, and policy templates into
 # CloudFormation resources, including execution roles and invoke permissions.
 Transform: AWS::Serverless-2016-10-31
-Description: FastAPI and Bedrock two-way SMS service for US recipients; deploy in us-west-2.
+Description: FastAPI and Bedrock two-way SMS service for US recipients; deploy in us-east-1.
 
 Parameters:
   # Existing sender identity; IAM sending permission is limited to this ARN.
@@ -106,7 +106,7 @@ Resources:
 
   ApiFunction:
     # Mangum adapts API Gateway HTTP API v2 events to the FastAPI application.
-    # This function sends caller-provided SMS; it does not need Bedrock permission.
+    # It sends caller-provided SMS and drafts Bedrock replies for /sms/reply.
     Type: AWS::Serverless::Function
     Properties:
       Handler: app.main.handler
@@ -125,6 +125,12 @@ Resources:
             - Effect: Allow
               Action: secretsmanager:GetSecretValue
               Resource: !Ref ApiToken
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              # Same model resources as InboundFunction, for /sms/reply.
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-lite-v1:0'
+                - !Sub 'arn:${AWS::Partition}:bedrock:us-*::foundation-model/amazon.nova-lite-v1:0'
       Events:
         # Proxy paths reach FastAPI, which decides whether a concrete route exists.
         Proxy:

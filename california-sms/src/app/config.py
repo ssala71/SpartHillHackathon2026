@@ -50,7 +50,7 @@ def settings() -> Settings:
     if missing:
         raise ValueError('Missing required AWS configuration: ' + ', '.join(missing))
     result = Settings(
-        region=os.getenv('AWS_REGION', 'us-west-2'),
+        region=os.getenv('AWS_REGION', 'us-east-1'),
         allowed=frozenset(x.strip() for x in os.getenv('ALLOWED_RECIPIENTS', '').split(',') if x.strip()),
         phone=os.environ['SMS_PHONE_NUMBER'].strip(),
         origin=os.getenv('SMS_ORIGINATION_ID', ''),

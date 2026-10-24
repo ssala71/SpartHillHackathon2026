@@ -90,4 +90,4 @@ def test_valid_configuration_health_and_schema(environment):
     # accidental reintroduction of an HTTP simulation/inbound injection endpoint.
     with TestClient(create_app()) as client:
         assert client.get('/health').json() == {'status': 'ok', 'region': 'us-west-2'}
-        assert set(client.get('/openapi.json').json()['paths']) == {'/health', '/sms/send'}
+        assert set(client.get('/openapi.json').json()['paths']) == {'/health', '/sms/send', '/sms/reply'}
