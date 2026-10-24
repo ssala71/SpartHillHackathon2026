@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from app.api.schemas import (
     ApiError,
     ApiResponse,
+    InventoryCategory,
     Incident,
     InventoryItem,
     Request,
@@ -26,18 +27,22 @@ def test_contracts_validate_enum_values() -> None:
     request = Request(
         source_phone="+14085551212",
         message="We need water",
-        urgency="medical",
+        urgency="Medical",
     )
     inventory = InventoryItem(
         resource_id="00000000-0000-0000-0000-000000000001",
         item_name="Water",
         quantity=10,
         unit="cases",
-        status="available",
+        category="Liquids",
+        status="Available",
+        expiration_date="2027-01-15",
     )
 
     assert request.urgency is RequestUrgency.MEDICAL
-    assert inventory.status.value == "available"
+    assert inventory.status.value == "Available"
+    assert inventory.category is InventoryCategory.LIQUIDS
+    assert inventory.expiration_date == date(2027, 1, 15)
 
 
 def test_json_response_envelope() -> None:

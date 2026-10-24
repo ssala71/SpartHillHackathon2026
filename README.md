@@ -155,3 +155,78 @@ Add these only after the core flow works:
 - More resource categories beyond food and shelters.
 - Travel or delivery estimates, clearly labeled as estimates.
 - Food-distribution and expiry tracking. Only claim food waste prevented if we can measure it.
+
+## Local Development
+
+The backend and frontend use separate environments. Do not commit virtual environments, frontend dependencies, build output, IDE settings, or local `.env` files.
+
+### Prerequisites
+
+- Python 3.13
+- Node.js and pnpm
+- Access to the AWS RDS PostgreSQL database for backend work
+
+### Backend setup
+
+From the repository root, enter the backend directory:
+
+```bash
+cd backend
+```
+
+On Windows PowerShell:
+
+```powershell
+py -3.13 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+On macOS or Linux:
+
+```bash
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+Edit `backend/.env` and set the RDS connection string:
+
+```env
+DATABASE_URL=postgresql+psycopg://username:password@host:5432/database_name?sslmode=require
+```
+
+Start the API from the `backend` directory on any operating system:
+
+```bash
+python -m uvicorn app.main:app --reload
+```
+
+Run the backend tests:
+
+```bash
+python -m pytest
+```
+
+The health check is available at `http://127.0.0.1:8000/health`.
+
+### Frontend setup
+
+The React/Vite frontend is maintained on the `frontendReactSetUp` branch. From the repository root after that branch is checked out or merged:
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+
+The Vite development server prints its local URL in the terminal. Other useful commands are:
+
+```bash
+pnpm build
+pnpm lint
+```
+
+Use `python -m ...` for backend tools and `pnpm ...` for frontend tools so the commands work consistently on Windows, macOS, and Linux.
