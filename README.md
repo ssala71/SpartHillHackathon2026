@@ -236,6 +236,33 @@ Completed requests remain in the default request list. Status updates require
 an `admin_user_id`; authentication and authorization for that ID will be added
 in a later configuration/security branch.
 
+### AI processing API
+
+AI processing runs asynchronously after a request is persisted. Local
+development uses a mock processor by default:
+
+```env
+AWS_REGION=us-east-1
+BEDROCK_ENABLED=false
+BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
+```
+
+Set `BEDROCK_ENABLED=true` only after the AWS account has Bedrock model access
+and the local AWS CLI credentials are configured. The original request remains
+unchanged. Raw Bedrock output is retained on the processing attempt, while the
+validated fields are stored in the AI results table.
+
+```text
+POST /api/requests/{request_id}/process
+GET  /api/requests/{request_id}/processing
+POST /api/requests/{request_id}/retry
+GET  /api/requests/{request_id}/result
+GET  /api/requests/{request_id}/match
+```
+
+Matching intentionally returns `needs_review=true` until Role 2 supplies the
+resource-matching implementation.
+
 ### Frontend setup
 
 The React/Vite frontend is maintained on the `frontendReactSetUp` branch. From the repository root after that branch is checked out or merged:
