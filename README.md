@@ -2,7 +2,7 @@
 
 **SpartHill Hackathon 2026 | AWS Challenge**
 
-**Team:** Jordan, Samuel, Bhuvana, Hiral, Josh
+**Team:** Josh, Jordan, Samuel, Bhuvana, Hiral
 
 **Status:** Project plan. Features below are planned, not confirmed as built.
 
@@ -43,7 +43,7 @@ The system extracts her location and needs, flags the medical-device concern for
 
 ### Role 1: AWS Backend and SMS
 
-**Jordan, Samuel**
+**Jordan, Samuel, Josh**
 
 - Build incoming and outgoing SMS, coordinator-triggered broadcasts, and opt-out handling.
 - Build APIs and storage for incidents, requests, resources, inventory, and assignments.
@@ -56,7 +56,7 @@ The system extracts her location and needs, flags the medical-device concern for
 
 ### Role 2: Bedrock, Resources, and Matching
 
-**Bhuvana, Hiral, Josh**
+**Bhuvana, Hiral**
 
 - Use Bedrock to turn messages into validated structured requests.
 - Extract needs and urgency indicators; identify missing details.
@@ -70,11 +70,14 @@ The system extracts her location and needs, flags the medical-device concern for
 
 ### Role 3: Frontend, Product, Testing, and Demo
 
-**Everyone**
+**Josh (Frontend)**
 
 - Build the coordinator dashboard with incident alerts, incoming requests, urgency flags, resource and inventory views, and status updates.
 - Support human review and confirmed delivery assignments.
 - Show clear loading, empty, and error states.
+
+**Everyone**
+
 - Agree on the persona, feature scope, specifications, and API formats.
 - Test individual components and the full connected application.
 - Prepare the demo and presentation together.
