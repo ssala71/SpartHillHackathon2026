@@ -13,7 +13,7 @@ Rules enforced here (from the spec, Person B's half):
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -105,7 +105,7 @@ class Matcher:
 
         # 3. Rank: nearest, then most needs covered, then most recently verified.
         candidates.sort(
-            key=lambda c: (c[2], -len(c[1]), _verified_sort_key(c[0]))
+            key=lambda c: (c[2], -len(c[1]), -_verified_at(c[0]).timestamp())
         )
         best_res, best_covered, best_dist = candidates[0]
 
@@ -142,18 +142,11 @@ _DISCLAIMER = (
 )
 
 
-def _verified_sort_key(res: Resource) -> str:
-    # Most recent last_verified_at first → invert by returning negated ordinal.
-    # Simpler: sort descending means we want larger timestamp first, so we
-    # return a value that sorts ascending for "more recent". We use the raw
-    # string reversed via a sentinel for None.
-    return "" if res.last_verified_at is None else _invert(res.last_verified_at)
-
-
-def _invert(s: str) -> str:
-    # ISO-8601 strings sort lexicographically; to get "most recent first" under
-    # an ascending sort, invert each char. Cheap and dependency-free.
-    return "".join(chr(0x10FFFF - ord(ch)) if ord(ch) < 0x10FFFF else ch for ch in s)
+def _verified_at(res: Resource) -> datetime:
+    """Parse last_verified_at for tie-breaking. Missing timestamps sort as oldest."""
+    if res.last_verified_at is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    return datetime.fromisoformat(res.last_verified_at.replace("Z", "+00:00"))
 
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
