@@ -32,7 +32,7 @@ class ResourceStore:
 
     @classmethod
     def from_json(cls, path: str | Path = _DEFAULT_DATA) -> "ResourceStore":
-        raw = json.loads(Path(path).read_text())
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
         resources = [cls._parse_resource(r) for r in raw.get("resources", [])]
         return cls(resources)
 

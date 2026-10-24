@@ -146,7 +146,11 @@ def _verified_at(res: Resource) -> datetime:
     """Parse last_verified_at for tie-breaking. Missing timestamps sort as oldest."""
     if res.last_verified_at is None:
         return datetime.min.replace(tzinfo=timezone.utc)
-    return datetime.fromisoformat(res.last_verified_at.replace("Z", "+00:00"))
+    parsed = datetime.fromisoformat(res.last_verified_at.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        # Assume UTC when no offset is given, so every machine sorts the same way.
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

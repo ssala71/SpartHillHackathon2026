@@ -10,10 +10,15 @@ from datetime import datetime, timezone
 
 from app.resource_matching.allocation import AllocationError, InMemoryAllocator
 from app.resource_matching.matcher import Matcher
+from app.resource_matching.matcher import _verified_at
 from app.resource_matching.models import (
     ExtractedLocation,
     ExtractionResult,
+    InventoryItem,
+    Location,
     Need,
+    OperatingHours,
+    Resource,
 )
 from app.resource_matching.store import ResourceStore
 
@@ -101,6 +106,49 @@ class AllocationTests(unittest.TestCase):
     def test_cannot_allocate_from_unverified(self):
         with self.assertRaises(AllocationError):
             self.alloc.allocate("res-0003", "water", 1)       # Eastside unverified
+
+
+def _resource_with_hours(hours, last_verified_at=None):
+    return Resource(
+        resource_id="res-test",
+        name="Test",
+        verified=True,
+        status="open",
+        location=Location(lat=0.0, lon=0.0, address="test"),
+        operating_hours=hours,
+        inventory={"water": InventoryItem(available=1, unit="l", updated_at="2026-10-23T00:00:00Z")},
+        last_verified_at=last_verified_at,
+    )
+
+
+class OvernightHoursTests(unittest.TestCase):
+    def setUp(self):
+        # Open Monday 22:00 until Tuesday 02:00.
+        self.res = _resource_with_hours([OperatingHours(day="mon", open="22:00", close="02:00")])
+
+    def test_open_late_on_the_start_day(self):
+        monday_23 = datetime(2026, 10, 19, 23, 0, tzinfo=timezone.utc)
+        self.assertTrue(self.res.is_open_at(monday_23))
+
+    def test_open_early_the_next_morning(self):
+        tuesday_01 = datetime(2026, 10, 20, 1, 0, tzinfo=timezone.utc)
+        self.assertTrue(self.res.is_open_at(tuesday_01))
+
+    def test_closed_after_the_overnight_window_ends(self):
+        tuesday_03 = datetime(2026, 10, 20, 3, 0, tzinfo=timezone.utc)
+        self.assertFalse(self.res.is_open_at(tuesday_03))
+
+    def test_closed_during_the_day(self):
+        monday_noon = datetime(2026, 10, 19, 12, 0, tzinfo=timezone.utc)
+        self.assertFalse(self.res.is_open_at(monday_noon))
+
+
+class TimestampTests(unittest.TestCase):
+    def test_timestamp_without_offset_is_read_as_utc(self):
+        bare = _verified_at(_resource_with_hours([], "2026-10-23T08:00:00"))
+        zulu = _verified_at(_resource_with_hours([], "2026-10-23T08:00:00Z"))
+        self.assertEqual(bare, zulu)
+        self.assertEqual(bare.tzinfo, timezone.utc)
 
 
 if __name__ == "__main__":

@@ -80,13 +80,21 @@ class OperatingHours:
     open: str         # "HH:MM"
     close: str        # "HH:MM"
 
-    def covers(self, when: datetime) -> bool:
-        day_map = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
-        if day_map[when.weekday()] != self.day:
-            return False
+    def covers_time_on_day(self, t: time) -> bool:
+        """True if time `t` falls inside this entry's window on its own day.
+        For overnight entries (e.g. 22:00-02:00) this means 22:00 onward."""
         o = _parse_hhmm(self.open)
         c = _parse_hhmm(self.close)
-        return o <= when.time() <= c
+        if o <= c:
+            return o <= t <= c
+        return t >= o
+
+    def covers_after_midnight(self, t: time) -> bool:
+        """True if time `t` falls in the tail of an overnight entry, i.e. the
+        part that continues into the following day (up to the close time)."""
+        o = _parse_hhmm(self.open)
+        c = _parse_hhmm(self.close)
+        return o > c and t <= c
 
 
 @dataclass
@@ -117,7 +125,14 @@ class Resource:
     def is_open_at(self, when: datetime) -> bool:
         if self.status != "open":
             return False
-        return any(h.covers(when) for h in self.operating_hours)
+        t = when.time()
+        today = _DAYS[when.weekday()]
+        yesterday = _DAYS[(when.weekday() - 1) % 7]
+        return any(
+            (h.day == today and h.covers_time_on_day(t))
+            or (h.day == yesterday and h.covers_after_midnight(t))
+            for h in self.operating_hours
+        )
 
     def available_for(self, category: str) -> int:
         item = self.inventory.get(category)
@@ -131,6 +146,9 @@ class Resource:
             and self.is_open_at(when)
             and self.available_for(category) > 0
         )
+
+
+_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
 def _parse_hhmm(value: str) -> time:
