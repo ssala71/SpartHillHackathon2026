@@ -25,6 +25,12 @@ from .store import ResourceStore
 # Output models
 # ---------------------------------------------------------------------------
 
+# The three possible outcomes of the matcher.
+OUTCOME_MATCHED = "matched"
+OUTCOME_NO_MATCH = "no_match"
+OUTCOME_DELIVERY_REVIEW = "needs_delivery_review"
+
+
 @dataclass
 class Match:
     resource_id: str
@@ -43,10 +49,22 @@ class Match:
 
 
 @dataclass
+class DeliveryReview:
+    """Returned for high-urgency / human-review requests instead of a direct
+    match. The system never promises a resource here — a coordinator decides."""
+
+    urgency: str
+    reason: str
+    needs: list[str]
+    people_count: Optional[int]
+
+
+@dataclass
 class MatchResult:
-    outcome: str                         # "matched" | "no_match"
+    outcome: str                         # matched | no_match | needs_delivery_review
     match: Optional[Match] = None
     no_match_reason: Optional[str] = None
+    delivery_review: Optional[DeliveryReview] = None
     considered_count: int = 0
     disclaimer: str = ""
 
@@ -69,13 +87,30 @@ class Matcher:
         needs = extraction.need_categories()
         if not needs:
             return MatchResult(
-                outcome="no_match",
+                outcome=OUTCOME_NO_MATCH,
                 no_match_reason="no_needs_in_request",
                 disclaimer=_DISCLAIMER,
             )
+
+        # High urgency OR a human-review flag (medical device, medication,
+        # injury, immediate danger, serious health concern) must go to human
+        # delivery review — never a direct automatic match. This check runs
+        # before matching so we never promise a resource for these cases.
+        if extraction.needs_review():
+            return MatchResult(
+                outcome=OUTCOME_DELIVERY_REVIEW,
+                delivery_review=DeliveryReview(
+                    urgency=extraction.urgency,
+                    reason=_review_reason(extraction),
+                    needs=needs,
+                    people_count=extraction.people_count,
+                ),
+                disclaimer=_REVIEW_DISCLAIMER,
+            )
+
         if not extraction.has_location():
             return MatchResult(
-                outcome="no_match",
+                outcome=OUTCOME_NO_MATCH,
                 no_match_reason="no_usable_location",
                 disclaimer=_DISCLAIMER,
             )
@@ -97,7 +132,7 @@ class Matcher:
         # 2. No eligible verified/open/in-stock resource → explicit no_match.
         if not candidates:
             return MatchResult(
-                outcome="no_match",
+                outcome=OUTCOME_NO_MATCH,
                 no_match_reason="no_verified_open_in_stock_resource",
                 considered_count=0,
                 disclaimer=_DISCLAIMER,
@@ -129,7 +164,7 @@ class Matcher:
             selection_reason=reason,
         )
         return MatchResult(
-            outcome="matched",
+            outcome=OUTCOME_MATCHED,
             match=match,
             considered_count=considered,
             disclaimer=_DISCLAIMER,
@@ -140,6 +175,20 @@ _DISCLAIMER = (
     "Match is informational and sourced from current records; it is not a "
     "delivery confirmation."
 )
+
+_REVIEW_DISCLAIMER = (
+    "Flagged for human delivery review. No resource or delivery is confirmed "
+    "until a coordinator accepts it."
+)
+
+
+def _review_reason(extraction: ExtractionResult) -> str:
+    if extraction.requires_human_review:
+        return (
+            "Request flagged as a medical device, medication, injury, immediate "
+            "danger, or serious health concern — routed to a coordinator."
+        )
+    return "High-urgency request — routed to a coordinator for delivery review."
 
 
 def _verified_at(res: Resource) -> datetime:

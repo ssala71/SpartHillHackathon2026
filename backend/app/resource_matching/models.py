@@ -17,12 +17,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, time
+from enum import Enum
 from typing import Optional
 
 
 # ---------------------------------------------------------------------------
 # Input from Person A (AI interpretation — never a source of resource facts)
 # ---------------------------------------------------------------------------
+
+class Urgency(str, Enum):
+    """The ONLY urgency levels in the system — matches the shared data contract
+    and the Bedrock extraction output. There is deliberately no separate
+    "medical" level: a medical concern is expressed as HIGH urgency plus
+    ``requires_human_review``."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
 
 @dataclass
 class Need:
@@ -49,7 +61,8 @@ class ExtractionResult:
     needs: list[Need] = field(default_factory=list)
     location: ExtractedLocation = field(default_factory=ExtractedLocation)
     people_count: Optional[int] = None
-    urgency_indicators: list[dict] = field(default_factory=list)
+    urgency: str = Urgency.LOW.value          # one of low | medium | high
+    requires_human_review: bool = False       # set true for medical/danger cases
     model_notes: Optional[str] = None
 
     def has_location(self) -> bool:
@@ -58,6 +71,15 @@ class ExtractionResult:
 
     def need_categories(self) -> list[str]:
         return [n.category for n in self.needs]
+
+    def is_high_urgency(self) -> bool:
+        return self.urgency == Urgency.HIGH.value
+
+    def needs_review(self) -> bool:
+        """A request goes to human delivery review when it is high urgency OR
+        when Person A flagged it (medical device, medication, injury, immediate
+        danger, serious health concern all map to high + this flag)."""
+        return self.is_high_urgency() or self.requires_human_review
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ from app.resource_matching.models import (
     Need,
     OperatingHours,
     Resource,
+    Urgency,
 )
 from app.resource_matching.store import ResourceStore
 
@@ -29,11 +30,19 @@ MONDAY_NOON = datetime(2026, 10, 19, 12, 0, 0, tzinfo=timezone.utc)
 NEAR_RIVERSIDE = ExtractedLocation(lat=34.0752, lon=-117.3698, confidence=0.9)
 
 
-def make_extraction(categories, location=NEAR_RIVERSIDE, people=3):
+def make_extraction(
+    categories,
+    location=NEAR_RIVERSIDE,
+    people=3,
+    urgency="low",
+    requires_human_review=False,
+):
     return ExtractionResult(
         needs=[Need(category=c, raw_text=c) for c in categories],
         location=location,
         people_count=people,
+        urgency=urgency,
+        requires_human_review=requires_human_review,
     )
 
 
@@ -84,6 +93,51 @@ class MatchingTests(unittest.TestCase):
         result = self.matcher.match(make_extraction(["water"]), when=MONDAY_NOON)
         self.assertEqual(result.outcome, "matched")
         self.assertNotEqual(result.match.resource_id, "res-0004")
+
+
+class UrgencyTests(unittest.TestCase):
+    """Only low/medium/high exist. High urgency OR requires_human_review must
+    return needs_delivery_review; low/medium use normal matching."""
+
+    def setUp(self):
+        self.store = ResourceStore.from_json()
+        self.matcher = Matcher(self.store)
+
+    def test_only_three_urgency_levels_exist(self):
+        self.assertEqual({u.value for u in Urgency}, {"low", "medium", "high"})
+
+    def test_high_urgency_returns_delivery_review(self):
+        result = self.matcher.match(
+            make_extraction(["water"], urgency="high"), when=MONDAY_NOON
+        )
+        self.assertEqual(result.outcome, "needs_delivery_review")
+        self.assertIsNone(result.match)
+        self.assertIsNotNone(result.delivery_review)
+        self.assertEqual(result.delivery_review.urgency, "high")
+        self.assertIn("coordinator", result.delivery_review.reason)
+        self.assertIn("No resource or delivery is confirmed", result.disclaimer)
+
+    def test_requires_human_review_flag_forces_review_even_if_not_high(self):
+        """A medical device / injury flag maps to review regardless of the
+        numeric level that reached the matcher."""
+        result = self.matcher.match(
+            make_extraction(["water"], urgency="medium", requires_human_review=True),
+            when=MONDAY_NOON,
+        )
+        self.assertEqual(result.outcome, "needs_delivery_review")
+        self.assertIn("medical device", result.delivery_review.reason)
+
+    def test_low_urgency_uses_normal_matching(self):
+        result = self.matcher.match(
+            make_extraction(["water"], urgency="low"), when=MONDAY_NOON
+        )
+        self.assertEqual(result.outcome, "matched")
+
+    def test_medium_urgency_uses_normal_matching(self):
+        result = self.matcher.match(
+            make_extraction(["water"], urgency="medium"), when=MONDAY_NOON
+        )
+        self.assertEqual(result.outcome, "matched")
 
 
 class AllocationTests(unittest.TestCase):
