@@ -1,0 +1,57 @@
+{
+  "_note": "SIMULATED demo data for SpartHills 2026. Not real resource availability. Every record carries a source and last_verified time. is_simulated=true on all.",
+  "resources": [
+    {
+      "id": "res-001",
+      "name": "Tully Community Center",
+      "location_text": "1620 Tully Rd, San Jose",
+      "lat": 37.3205,
+      "lon": -121.8365,
+      "categories": ["food", "other"],
+      "capacity": 120,
+      "operating_status": "open",
+      "source": "City of San Jose OEM (simulated)",
+      "last_verified": "2026-10-23T08:15:00Z",
+      "is_simulated": true
+    },
+    {
+      "id": "res-002",
+      "name": "Eastside Food Bank",
+      "location_text": "2301 McKee Rd, San Jose",
+      "lat": 37.3626,
+      "lon": -121.8456,
+      "categories": ["food"],
+      "capacity": 60,
+      "operating_status": "open",
+      "source": "Second Harvest partner feed (simulated)",
+      "last_verified": "2026-10-23T07:40:00Z",
+      "is_simulated": true
+    },
+    {
+      "id": "res-003",
+      "name": "Story Road Shelter",
+      "location_text": "880 Story Rd, San Jose",
+      "lat": 37.3301,
+      "lon": -121.8572,
+      "categories": ["other", "food"],
+      "capacity": 20,
+      "operating_status": "limited",
+      "source": "Red Cross intake (simulated)",
+      "last_verified": "2026-10-22T19:05:00Z",
+      "is_simulated": true
+    },
+    {
+      "id": "res-004",
+      "name": "Alum Rock Pharmacy Point",
+      "location_text": "3010 Alum Rock Ave, San Jose",
+      "lat": 37.3686,
+      "lon": -121.8225,
+      "categories": ["medicine"],
+      "capacity": 40,
+      "operating_status": "open",
+      "source": "County pharmacy liaison (simulated)",
+      "last_verified": "2026-10-23T06:30:00Z",
+      "is_simulated": true
+    }
+  ]
+}
