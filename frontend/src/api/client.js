@@ -1,17 +1,18 @@
 // Single entry point for all data the dashboard reads or changes.
-// Set VITE_API_BASE_URL (for example http://127.0.0.1:8000) to call the
-// FastAPI backend. Without it, everything runs against an in-memory mock.
+// Everything runs against an in-memory mock. Set VITE_BACKEND_URL (for example
+// http://127.0.0.1:8001) when starting the dev server to also list the real SMS
+// requests that the Waypoint backend saved, extracted, and matched.
 import * as seed from './mockData.js'
 import { suggestMatch } from './matching.js'
 import { composeReply, extract, locationReply, MODEL_ID } from './mockBedrock.js'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-export const USING_MOCK = !API_BASE_URL
+export const USING_MOCK = !import.meta.env.VITE_BACKEND_URL
 
-// ---------- Real backend ----------
+// ---------- Real requests from the backend ----------
 
+// The dev server proxies /api to VITE_BACKEND_URL, so the browser stays same-origin.
 async function http(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -19,29 +20,108 @@ async function http(path, options = {}) {
   // Backend responses use ApiResponse: { data, error }
   const payload = await response.json().catch(() => null)
   if (!response.ok || payload?.error) {
-    throw new Error(payload?.error?.message ?? `Request failed (${response.status})`)
+    throw new Error(payload?.error?.message ?? payload?.detail?.message ?? `Request failed (${response.status})`)
   }
   return payload?.data ?? payload
 }
 
-const realApi = {
-  listIncidents: () => http('/incidents'),
-  createIncident: (incident) => http('/incidents', { method: 'POST', body: incident }),
-  updateIncident: (id, patch) => http(`/incidents/${id}`, { method: 'PATCH', body: patch }),
-  sendAlert: (id) => http(`/incidents/${id}/alert`, { method: 'POST' }),
-  listRequests: () => http('/requests'),
-  receiveSms: (from, body) => http('/sms/simulate', { method: 'POST', body: { from, body } }),
-  processRequest: (id, options = {}) => http(`/requests/${id}/process`, { method: 'POST', body: options }),
-  approveMatch: (id) => http(`/requests/${id}/approve`, { method: 'POST' }),
-  sendFollowUp: (id) => http(`/requests/${id}/follow-up`, { method: 'POST' }),
-  updateRequest: (id, patch) => http(`/requests/${id}`, { method: 'PATCH', body: patch }),
-  listResources: () => http('/resources'),
-  listInventory: () => http('/inventory'),
-  updateInventoryItem: (id, patch) => http(`/inventory/${id}`, { method: 'PATCH', body: patch }),
-  listAssignments: () => http('/assignments'),
-  createAssignment: (assignment) => http('/assignments', { method: 'POST', body: assignment }),
-  updateAssignment: (id, patch) => http(`/assignments/${id}`, { method: 'PATCH', body: patch }),
+const optional = (promise) => promise.catch(() => null)
+
+// The backend records who changed a status; the dashboard has no logins yet.
+const COORDINATOR_ID = '00000000-0000-4000-8000-000000000001'
+const SIM_MARK = /\s*\(SIM[^)]*\)/g
+const NEXT_ACTION = {
+  direct_to_location: 'Send location by SMS',
+  follow_up: 'Ask follow-up question',
+  coordinator_review: 'Coordinator review',
+  no_match: 'Coordinator review',
+  not_processed: 'Retry processing',
 }
+
+// The dashboard shows Normal / Urgent / Medical; the backend stores low / medium / high.
+function urgencyLabel(level, medical) {
+  if (medical) return 'Medical'
+  return level === 'low' ? 'Normal' : 'Urgent'
+}
+
+function toUiRequest(record, result, matched) {
+  const place = matched?.resource
+  const at = result?.created_at ?? record.updated_at
+  const events = [
+    { label: 'SMS received', at: record.created_at },
+    { label: 'Saved before processing', at: record.created_at },
+  ]
+  if (result) events.push({ label: 'Bedrock extracted fields', detail: result.model_id, at })
+  if (matched && matched.action !== 'not_processed') {
+    events.push({ label: 'Matched against verified resources', detail: place?.name.replace(SIM_MARK, '') ?? matched.reason, at })
+  }
+  return {
+    id: record.id,
+    live: true,
+    incident_id: record.incident_id,
+    source_phone: record.source_phone,
+    message: record.message,
+    location_description: result?.location ?? record.location_description,
+    latitude: result?.latitude ?? null,
+    longitude: result?.longitude ?? null,
+    needs: result?.needs ?? record.needs,
+    people_count: result?.people_count ?? record.people_count,
+    urgency: urgencyLabel(result?.urgency ?? record.urgency, result?.medical_concern),
+    status: record.status,
+    processing_error: null,
+    extraction: result && {
+      urgency_indicators: result.medical_concern ? ['medical concern'] : [],
+      missing_fields: result.missing_information,
+      model_id: result.model_id,
+    },
+    // The SMS service sends the whole conversation, joined with " / ".
+    messages: record.message.split(' / ').map((body) => ({ direction: 'in', body, at: record.created_at })),
+    events,
+    suggested_match: matched && {
+      resource_id: place?.resource_id ?? null,
+      resource_name: place?.name.replace(SIM_MARK, ''),
+      address: place?.address.replace(SIM_MARK, ''),
+      covered_needs: place?.matched_needs ?? [],
+      distance_km: place ? Math.round(place.distance_km * 10) / 10 : null,
+      source: place?.source,
+      last_verified_at: place?.last_verified_at,
+      reason: matched.follow_up_message ?? matched.reason,
+      next_action: NEXT_ACTION[matched.action] ?? 'Coordinator review',
+    },
+    created_at: record.created_at,
+    updated_at: record.updated_at,
+  }
+}
+
+// Extraction and match are fetched again only when a request changes.
+const details = new Map()
+const live = new Map()
+
+async function listLiveRequests() {
+  const { items } = await http('/api/requests?limit=100')
+  // Each text in a conversation is saved as its own request that repeats the earlier
+  // messages, so the newest one per phone number holds the whole conversation.
+  const newest = new Map()
+  for (const record of items) if (!newest.has(record.source_phone)) newest.set(record.source_phone, record)
+  live.clear()
+  return Promise.all(
+    [...newest.values()].map(async (record) => {
+      const key = `${record.id}:${record.updated_at}`
+      if (!details.has(key)) {
+        details.set(key, await Promise.all([
+          optional(http(`/api/requests/${record.id}/result`)),
+          optional(http(`/api/requests/${record.id}/match`)),
+        ]))
+      }
+      const request = toUiRequest(record, ...details.get(key))
+      live.set(request.id, request)
+      return request
+    }),
+  )
+}
+
+const setLiveStatus = (id, status) =>
+  http(`/api/requests/${id}/status`, { method: 'PATCH', body: { status, admin_user_id: COORDINATOR_ID } })
 
 // ---------- In-memory mock ----------
 
@@ -83,7 +163,7 @@ for (const original of structuredClone(seed.requests)) {
 }
 
 function findRequest(id) {
-  const request = db.requests.find((item) => item.id === id)
+  const request = db.requests.find((item) => item.id === id) ?? live.get(id)
   if (!request) throw new Error(`Request ${id} not found`)
   return request
 }
@@ -105,6 +185,7 @@ function sendSms(request, body) {
 }
 
 function withMatch(request) {
+  if (request.live) return structuredClone(request)
   return structuredClone({ ...request, suggested_match: match(request) })
 }
 
@@ -279,4 +360,47 @@ const mockApi = {
   },
 }
 
-export const api = USING_MOCK ? mockApi : realApi
+// Demo data plus the backend's real requests. Status changes on a real request are
+// saved to the backend; texts to the requester come from the SMS service itself.
+const liveApi = {
+  ...mockApi,
+  async listRequests() {
+    const [real, demo] = await Promise.all([listLiveRequests(), mockApi.listRequests()])
+    return [...real, ...demo]
+  },
+  async processRequest(id, options) {
+    if (!live.has(id)) return mockApi.processRequest(id, options)
+    // A request that never ran is processed; a failed one is retried.
+    await http(`/api/requests/${id}/process`, { method: 'POST' }).catch(() => http(`/api/requests/${id}/retry`, { method: 'POST' }))
+    return live.get(id)
+  },
+  async approveMatch(id) {
+    if (!live.has(id)) return mockApi.approveMatch(id)
+    if (!live.get(id).suggested_match?.resource_id) throw new Error('There is no match to approve.')
+    return setLiveStatus(id, 'Matched')
+  },
+  async sendFollowUp(id) {
+    if (!live.has(id)) return mockApi.sendFollowUp(id)
+    throw new Error('The SMS service already asks follow-up questions by text.')
+  },
+  async updateRequest(id, patch) {
+    if (!live.has(id)) return mockApi.updateRequest(id, patch)
+    if (patch.status) await setLiveStatus(id, patch.status)
+    return live.get(id)
+  },
+  async createAssignment(assignment) {
+    const record = await mockApi.createAssignment(assignment)
+    if (live.has(assignment.request_id)) await setLiveStatus(assignment.request_id, 'Assigned')
+    return record
+  },
+  async updateAssignment(id, patch) {
+    const requestId = db.assignments.find((item) => item.id === id)?.request_id
+    if (!live.has(requestId)) return mockApi.updateAssignment(id, patch)
+    // A real requester is texted only by the SMS service, so skip the mock texts.
+    const record = await mockApi.updateAssignment(id, { ...patch, notify: false })
+    await setLiveStatus(requestId, live.get(requestId).status)
+    return record
+  },
+}
+
+export const api = USING_MOCK ? mockApi : liveApi

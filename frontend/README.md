@@ -16,13 +16,18 @@ pnpm dev          # open the URL it prints, e.g. http://localhost:5173
 With no configuration the dashboard runs on **simulated demo data** held in memory
 (`src/api/mockData.js`). Refreshing the page resets it.
 
-To use the FastAPI backend instead, create `frontend/.env.local`:
+To also show the **real SMS requests** from the Waypoint backend (see `california-sms/README.md`,
+"Optional: connect to the Waypoint backend"), start the dev server with the backend's address:
 
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000
+```bash
+VITE_BACKEND_URL=http://127.0.0.1:8001 pnpm dev
 ```
 
-and restart `pnpm dev`. The backend also needs CORS enabled for the Vite origin.
+The admin's Live dot turns green. Each phone number's conversation appears at the top of Requests with the
+backend's Bedrock fields and matcher result, refreshed every 5 seconds. Changing a status saves it to the
+backend. Incidents, resources, inventory, and assignments stay on demo data because the backend has no
+routes for them yet. The dev server forwards `/api` to the backend, so no CORS setup is needed. The
+hosted site cannot reach a laptop, so this works only with `pnpm dev`.
 
 Other commands: `pnpm build`, `pnpm lint`, `pnpm preview`.
 

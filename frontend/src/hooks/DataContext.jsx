@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import Button from '@cloudscape-design/components/button'
-import { api } from '../api/client.js'
+import { api, USING_MOCK } from '../api/client.js'
 
 const DataContext = createContext(null)
 
@@ -34,6 +34,10 @@ export function DataProvider({ children }) {
     // Initial load from the API; state updates happen after the awaited calls.
     // oxlint-disable-next-line react/set-state-in-effect
     refresh()
+    // New texts reach the backend on their own, so check for them every few seconds.
+    if (USING_MOCK) return undefined
+    const timer = setInterval(refresh, 5000)
+    return () => clearInterval(timer)
   }, [refresh])
 
   const notify = useCallback((type, content, undo) => {

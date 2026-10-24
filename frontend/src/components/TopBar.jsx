@@ -65,7 +65,7 @@ export default function TopBar({ view, id }) {
           {view === 'admin' && (
             <span
               className="hidden items-center gap-1.5 text-xs text-muted sm:flex"
-              title={USING_MOCK ? 'Simulated data. Set VITE_API_BASE_URL to use the backend.' : 'Connected to the Waypoint API'}
+              title={USING_MOCK ? 'Simulated data. Set VITE_BACKEND_URL to add real SMS requests.' : 'Real SMS requests from the Waypoint backend, plus demo data'}
             >
               <span className={`size-1.5 rounded-full ${USING_MOCK ? 'bg-warn' : 'bg-ok'}`} />
               {USING_MOCK ? 'Demo data' : 'Live'}

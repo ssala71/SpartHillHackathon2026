@@ -84,8 +84,8 @@ export function ExtractionPanel({ request }) {
               ),
             },
             { label: 'Missing', value: x.missing_fields.length ? x.missing_fields.join(', ') : 'Nothing' },
-            { label: 'Language', value: x.language === 'es' ? 'Spanish (reply sent in Spanish)' : 'English' },
-            { label: 'Model', value: `${x.model_id}, ${x.latency_ms} ms` },
+            { label: 'Language', value: x.language === 'es' ? 'Spanish (reply sent in Spanish)' : x.language === 'en' ? 'English' : 'Reply matches the sender' },
+            { label: 'Model', value: x.latency_ms == null ? x.model_id : `${x.model_id}, ${x.latency_ms} ms` },
           ]}
         />
         <ExpandableSection headerText="Structured output (validated JSON)">
