@@ -4,25 +4,42 @@ import SmsThread from '../components/SmsThread.jsx'
 import PipelineTracker from '../components/PipelineTracker.jsx'
 import { needLabel } from '../components/format.js'
 
-// Demo senders use 555 test numbers.
-const SENDERS = [
-  { value: '+14085550175', label: 'Resident' },
-  { value: '+14085550142', label: 'Maria' },
-  { value: '+14085550136', label: 'Español' },
-]
-
-const PRESETS = [
-  { label: 'Water', text: 'Hi, 3 of us near McLaughlin. We need water.' },
-  { label: 'Medical', text: 'My dad uses an oxygen concentrator and the power is out. We are near Tully Rd.' },
-  { label: 'Spanish', text: 'Necesitamos comida para mi familia, somos cuatro personas cerca de Story y King.' },
-  { label: 'Unclear', text: 'please help us' },
+// The people Waypoint is built for. Each texts from a 555 test number.
+const PERSONAS = [
+  {
+    phone: '+14085550142',
+    name: 'Maria',
+    situation: 'Caring for her grandmother, who relies on an oxygen concentrator. The power has been out for hours.',
+    samples: [
+      { label: 'Oxygen', text: "My grandma's oxygen machine has no power. We are near Tully Rd, 2 of us." },
+      { label: 'Water', text: 'We also need water, 2 people near Tully Rd.' },
+    ],
+  },
+  {
+    phone: '+14085550136',
+    name: 'Luis',
+    situation: 'Speaks Spanish. His family of four is running out of food.',
+    samples: [
+      { label: 'Comida', text: 'Necesitamos comida para mi familia, somos cuatro personas cerca de Story y King.' },
+      { label: 'Agua', text: 'Necesitamos agua, somos cuatro cerca de Story y King.' },
+    ],
+  },
+  {
+    phone: '+14085550175',
+    name: 'Sam',
+    situation: 'A student living alone. Phone at 10% and not sure what to ask for.',
+    samples: [
+      { label: 'First text', text: 'please help' },
+      { label: 'Answer the follow-up', text: 'water and a place to charge my phone, near McLaughlin, 1 person' },
+    ],
+  },
 ]
 
 const TAG = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-[13px] font-medium'
 const URGENCY_TONE = { Normal: 'bg-panel text-text', Urgent: 'bg-warn-soft text-warn', Medical: 'bg-danger-soft text-danger' }
 
 function Understood({ request, onRetry, retrying }) {
-  if (!request) return <p className="text-muted">Send a message to see what Waypoint understood.</p>
+  if (!request) return <p className="m-auto max-w-[240px] text-center text-muted">Send a message to see what Waypoint understood.</p>
 
   if (request.processing_error) {
     return (
@@ -41,7 +58,7 @@ function Understood({ request, onRetry, retrying }) {
       </div>
     )
   }
-  if (!request.extraction) return <p className="text-muted">Reading the message…</p>
+  if (!request.extraction) return <p className="m-auto text-center text-muted">Reading the message…</p>
 
   const match = request.suggested_match
   const rows = [
@@ -101,8 +118,8 @@ function SendIcon() {
 }
 
 export default function DemoPage() {
-  const { requests, run } = useData()
-  const [sender, setSender] = useState(SENDERS[0].value)
+  const { requests, incidents, resources, run } = useData()
+  const [sender, setSender] = useState(PERSONAS[0].phone)
   const [text, setText] = useState('')
   const [failNext, setFailNext] = useState(false)
   const [sending, setSending] = useState(false)
@@ -116,7 +133,10 @@ export default function DemoPage() {
   const active = requests.find((r) => r.id === activeId && r.source_phone === sender) ?? mine[0]
   const settledStep = !active ? -1 : active.processing_error ? 2 : active.status === 'Received' ? 1 : 4
   const step = liveStep ?? settledStep
-  const senderIndex = SENDERS.findIndex((s) => s.value === sender)
+  const personaIndex = PERSONAS.findIndex((p) => p.phone === sender)
+  const persona = PERSONAS[personaIndex]
+  const incident = incidents.find((i) => i.status === 'Active')
+  const openCount = resources.filter((r) => r.status === 'Active').length
 
   useEffect(() => {
     const el = threadRef.current
@@ -150,10 +170,25 @@ export default function DemoPage() {
 
   return (
     <div className="wp min-h-[calc(100dvh-57px)] bg-bg text-[15px] text-text">
-      <main className="mx-auto flex max-w-[960px] flex-col gap-8 px-4 py-10 sm:px-6 sm:py-12">
-        <div className="animate-in text-center">
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Text for help.</h1>
-          <p className="mx-auto mt-3 max-w-md text-[17px] text-muted">Send a message. Waypoint reads it and replies with the nearest verified resource.</p>
+      <main className="mx-auto flex max-w-[960px] flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
+        <div className="flex flex-col gap-3">
+          {incident && (
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-2xl bg-[linear-gradient(135deg,#0b1f3a_0%,#1f3b73_100%)] px-4 py-2.5 text-[13px] text-white/80">
+              <span className="inline-flex items-center gap-2 font-semibold text-white">
+                <span className="size-1.5 animate-pulse rounded-full bg-[#ffb547]" />
+                {incident.name}
+              </span>
+              <span aria-hidden="true" className="hidden sm:inline">·</span>
+              <span>{incident.affected_area}</span>
+              <span aria-hidden="true" className="hidden sm:inline">·</span>
+              <span>{openCount} locations open</span>
+              <span aria-hidden="true" className="hidden sm:inline">·</span>
+              <span>
+                Emergency? <span className="font-semibold text-white">Call 911</span>
+              </span>
+            </div>
+          )}
+          <p className="text-center text-muted">Pick a person, then send one of their texts or write your own. Waypoint replies with the nearest verified resource.</p>
         </div>
 
         <div className="mx-auto w-full max-w-[640px]">
@@ -166,24 +201,27 @@ export default function DemoPage() {
               <span
                 aria-hidden="true"
                 className="absolute inset-y-0.5 left-0.5 w-[calc((100%-4px)/3)] rounded-full bg-raised shadow-sm ring-1 ring-line/60 transition-transform duration-300 ease-apple"
-                style={{ transform: `translateX(${senderIndex * 100}%)` }}
+                style={{ transform: `translateX(${personaIndex * 100}%)` }}
               />
-              {SENDERS.map((s) => (
+              {PERSONAS.map((p) => (
                 <button
-                  key={s.value}
+                  key={p.phone}
                   role="tab"
-                  aria-selected={sender === s.value}
-                  onClick={() => setSender(s.value)}
-                  className={`relative z-10 truncate px-2 py-1.5 transition-colors duration-200 ${sender === s.value ? 'text-text' : 'text-muted hover:text-text'}`}
+                  aria-selected={sender === p.phone}
+                  onClick={() => setSender(p.phone)}
+                  className={`relative z-10 truncate px-2 py-1.5 transition-colors duration-200 ${sender === p.phone ? 'text-text' : 'text-muted hover:text-text'}`}
                 >
-                  {s.label}
+                  {p.name}
                 </button>
               ))}
             </div>
+            <p key={persona.phone} className="min-h-[3lh] animate-in text-center text-[13px] leading-snug text-muted">
+              {persona.situation}
+            </p>
 
             <div className="flex h-[520px] flex-col overflow-hidden rounded-[36px] border border-line bg-raised shadow-[0_24px_60px_-24px_rgb(11_31_58/0.28)]">
               <div className="border-b border-line/70 py-3 text-center text-[13px] font-semibold">Waypoint</div>
-              <div ref={threadRef} className="flex-1 overflow-y-auto p-3">
+              <div ref={threadRef} className="flex flex-1 flex-col overflow-y-auto p-3">
                 <SmsThread messages={messages} emptyText="No messages yet." />
               </div>
               <form
@@ -213,11 +251,12 @@ export default function DemoPage() {
             </div>
 
             <div className="flex flex-wrap justify-center gap-2">
-              {PRESETS.map((p) => (
+              {persona.samples.map((p) => (
                 <button
                   key={p.label}
                   onClick={() => send(p.text)}
                   disabled={sending}
+                  title={p.text}
                   className="rounded-full border border-line px-3.5 py-1.5 text-[13px] font-medium transition-colors hover:border-accent hover:text-accent disabled:opacity-40"
                 >
                   {p.label}
@@ -226,12 +265,12 @@ export default function DemoPage() {
             </div>
           </section>
 
-          <section aria-live="polite" className="flex flex-col gap-6 rounded-3xl border border-line bg-raised p-6 sm:p-8">
+          <section aria-live="polite" className="flex flex-col gap-6 self-stretch rounded-3xl border border-line bg-raised p-6 sm:p-8">
             <h2 className="text-xl font-semibold tracking-tight">What Waypoint understood</h2>
-            <div key={`${active?.id}-${active?.status}-${active?.processing_error}`} className="animate-in">
+            <div key={`${active?.id}-${active?.status}-${active?.processing_error}`} className="flex flex-1 flex-col animate-in">
               <Understood request={active} onRetry={retry} retrying={retrying} />
             </div>
-            <label className="mt-auto flex cursor-pointer items-center justify-between gap-4 border-t border-line pt-5 text-sm text-muted">
+            <label className="flex cursor-pointer items-center justify-between gap-4 border-t border-line pt-5 text-sm text-muted">
               Simulate a Bedrock failure
               <input id="demo-fail" type="checkbox" role="switch" checked={failNext} onChange={(e) => setFailNext(e.target.checked)} className="peer sr-only" />
               <span

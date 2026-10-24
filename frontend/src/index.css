@@ -49,7 +49,7 @@
 }
 
 @theme inline {
-  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-sans: 'Inter Variable', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   --color-bg: var(--bg);
   --color-panel: var(--panel);
   --color-raised: var(--raised);
@@ -178,7 +178,7 @@ body {
   color: var(--muted);
   font-size: 14px;
   text-align: center;
-  margin: 0;
+  margin: auto; /* centered when the parent is a flex column */
 }
 
 /* Processing timeline in the request detail */

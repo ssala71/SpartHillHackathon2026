@@ -1,13 +1,15 @@
-// Waypoint look on top of Cloudscape: white surfaces, dark blue accents, the system font.
+// Waypoint look on top of Cloudscape: white surfaces, dark blue accents, Inter.
 import { applyTheme } from '@cloudscape-design/components/theming'
 import { applyMode, Mode } from '@cloudscape-design/global-styles'
+import '@fontsource-variable/inter'
 
 const brand = { light: '#1f3b73', dark: '#8fb3ff' }
 const brandHover = { light: '#162d5a', dark: '#b3ccff' }
 const brandActive = { light: '#10224a', dark: '#d2e0ff' }
 const onBrand = { light: '#ffffff', dark: '#0b1730' }
 
-const FONT = "ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+// Bundled so the demo and admin look the same on Mac, Windows, and Linux.
+const FONT = "'Inter Variable', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
 
 applyTheme({
   theme: {
